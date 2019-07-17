@@ -38,8 +38,7 @@ export class App {
     this.blocks = [];
     this.loadBlocks();
     this.typedMessage = '';
-    this.tempInsertTerm = "";
-    this.insertTermLabel = "";
+    this.insertTermObj = {label:"",value:"",temp:""};
     this.complianceItem={country:"", industry:"",strain:"",enzyme:"",product:"",complianceTest:"",
       noItemsMessage:`<div><p>No Compliance Tests Exist for this combination.</p><p>While this cannot guarantee that there are no compliance requirements,
       it does mean that Dupont has not yet developed a compliance test for this contingency, so you should check with regulatory compliance guidelines.</p></div>`};
@@ -1133,39 +1132,41 @@ filterComplianceTest(){
   }
 
  insertTermDlg(){
+    this.insertTermObj = {label:"",value:"",temp:""};
     let editor = document.querySelector('.bodyEditor');
     let selection = window.getSelection();
     this.q = selection.toString();
-    this.tempInsertTerm = selection.toString();
-    this.insertTermLabel = this.tempInsertTerm;
+    this.insertTermObj.temp = selection.toString();
+    this.insertTermObj.label = selection.toString();
     this.formatDoc('insertHTML',"%^%");
     this.inputSearch()
     this.insertTermModal.open()
  }
 
- insertTerm(searchItem){
+ insertTerm(){
   console.log("Entering insertTerm()");
-  this.insertTermModal.close();
   this.q = "";
-  let label = (this.insertTermLabel != "")?this.insertTermLabel:searchItem.p
-  let link = `<a href="/?context=${searchItem.s}" class="link">${label}</a>`;
+  let label = this.insertTermObj.temp;
+  let link = `<a href="/?context=${this.insertTermObj.value}" class="link">${label}</a>`;
   let editor = document.querySelector('.bodyEditor');
   let html = editor.innerHTML;
   editor.innerHTML = html.replace("%^%",link)
   editor.focus();
-  console.log(link);
  }
 
  cancelInsertTerm(){
   this.q = "";
-  let link = this.tempInsertTerm;
+  let link = this.insertTermObj.temp;
   let editor = document.querySelector('.bodyEditor');
   let html = editor.innerHTML;
   editor.innerHTML = html.replace("%^%",link)
-  this.insertTermModal.cancel()
+  //this.insertTermModal.cancel()
   editor.focus();  
  }
-
+ updateInsertTerm(){
+  let searchItem = this.searchData.results.find((searchItem)=>searchItem.s === this.insertTermObj.value);
+  this.insertTermObj.temp = searchItem.prefLabel;  
+ }
 
   hasContent(context,property){
     //console.log(context,property);

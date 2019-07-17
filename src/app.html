@@ -577,7 +577,7 @@
 	</div>
   </modal>
 
-  <modal view-model.ref="insertTermModal">
+  <modal view-model.ref="insertTermModal" closed.delegate="insertTerm()" canceled.delegate="cancelInsertTerm()">
     <div slot="header"></div>
     <div>
       <h3>Insert Term</h3>
@@ -586,17 +586,20 @@
 			<div class="dlg-label">Search:</div>
 			<div class="dlg-value"><input value.bind="q" type="text" input.delegate="inputSearch()"/></div>
 		</div>
-		<div class="inputSearchList">
-			<div class="inputSearchItem link" repeat.for="searchItem of searchData.results" if.bind="$index<10" click.trigger="insertTerm(searchItem)">${searchItem.prefLabel}</div>
+		<div class="property">
+			<select class="inputSearchList" value.bind="insertTermObj.value">
+				<div class="dlg-label">Link:</div>
+				<option class="inputSearchItem link" value.bind="searchItem.s" repeat.for="searchItem of searchData.results" if.bind="$index<10">${searchItem.prefLabel}</option>
+			</select>
 		</div>
 		<div class="property">
 			<div class="dlg-label">Label:</div>
-			<div class="dlg-value"><input value.bind="insertTermLabel" type="text"/></div>
+			<div class="dlg-value"><input value.bind="insertTermObj.temp" type="text"/><div class="button" click.trigger="updateInsertTerm()">Use Term Label</div></div>
 		</div>
     </div>
 	<div slot="footer">
-		<!--<div class="button" click.trigger="insertPropertyLinkModal.close()">Insert</div>-->
-		<div class="button" click.trigger="cancelInsertTerm()">Cancel</div>
+		<div class="button" click.trigger="insertTermModal.close()">Insert</div>
+		<div class="button" click.trigger="insertTermModal.cancel()">Cancel</div>
 	</div>
   </modal>
 

@@ -35,8 +35,8 @@
   </div>
   <div class="paneContainer">
   <div class="leftPane">
-	<div class="byline"></div>
-	<div class="topics"></div>
+	<div class="byline"> </div>
+	<div class="topics"> </div>
   </div>	
   <div class="centerPane">
   <div class="display">
@@ -139,6 +139,7 @@
 			  		</span>
 			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:htmlLiteral')" title="${item.value}">
 				  		<div class="bodyEditor" innerhtml.two-way="item.value" contenteditable="true"></div>
+				  		<button click.trigger="deleteItem($index,g[context][property])">X</button>
 			  		</span>
 			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:gYear')" title="${item.value}">
 			  			<input type="number" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property])">X</button>
@@ -164,7 +165,7 @@
 		<div class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</div>	  	
 	  <div class="tabs">
 	     <div class="tab ${(predicate.curie === activeLinkPredicate)?'active':''}" repeat.for="predicate of predicates" click.trigger="activateTab(predicate.curie)"
-	     if.bind="!['rdfs:domain','rdfs:range'].includes(predicate.curie)"
+	     if.bind="!(['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange'].includes(predicate.curie))"
 	     title="${predicate.curie}">
 		   ${predicate.domainLabel } ${predicate.label} ${g[context].hasOwnProperty('class:hasPluralName')?g[context]['class:hasPluralName'][0].value:g[context]['term:prefLabel'][0].value}
 		  </div>
@@ -174,14 +175,21 @@
 	  	</div>
 	  	<div class="buttons">
 	  	<div class="button" click.trigger="newCard()" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Create')">New ${g[context]['term:prefLabel'][0].value}</div>
+	  	<div class="button" click.trigger="newCard(g[context]['rdf:type'][0].value)" if.bind="(!context.startsWith('class:')) && userRole.has('accountRole:_Create')">New ${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>	  	
 	  	<div class="button" click.trigger="deleteClassItems()" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Delete')  && (context != 'class:_Class') && (context != 'class:_Property')">Delete All Items In ${g[context]['term:prefLabel'][0].value}</div>
 	    </div>
-	  	<div>Item Count = ${itemCount} <div class="button" click.trigger="reverse()">${reversed?"Drive":"Reverse"}</div></div>
+	  	<div>Item Count = ${itemCount}</div>
+	  	<div class="sortField">
+	  		<select value.bind="sortMode" change.delegate="sort()">
+	  			<option repeat.for="sortModeState of sortModeStates" value.bind = "sortModeState.value">${sortModeState.label}</option>
+	  		</select>
+	  		<div class="button" click.trigger="reverse()">${reversed?"Drive":"Reverse"}</div>
+	  	</div>
 	  	<div class="pager"><span class="link" click.trigger="prevRefPage()">&#9664;</span> Page ${page + 1} of ${totalPages} <span class="link" click.trigger="nextRefPage()">&#9654;</span></div>
 	  	<div class="constraintsBlock">
 	  		<div class="buttons">
 	  			<button click.trigger="newConstraint()" class="button">Add Constraint</button>
-	  			<button click.trigger="clearConstraints" class="button">Clear Constraint</button>
+	  			<button click.trigger="clearConstraints()" class="button">Clear Constraints</button>
 	  		</div>
 	  		<div class="contraints">
 	  			<div class="constraint property" repeat.for="constraint of constraints">
@@ -201,6 +209,7 @@
 		  		<!--<span class="link" click.trigger="fetchContext(g[link]['rdf:type'][0].value)" >[${g[g[link]['rdf:type'][0].value]['term:prefLabel'][0].value}]</span>-->
 		  		[<span class="link" repeat.for="sType of g[link]['rdf:type']"  click.trigger="fetchContext(sType.value,'list')">
 		  			${g[sType.value]['term:prefLabel'][0].value}<span if.bind="!$last">, </span></span>]
+		  		<div class="linkDate">${displayLiteral(g[link]['term:hasLastModifiedDate'][0])}</div>
 		  		<div class="linkDescription" innerHTML="${summaryFilter(g[link]['term:hasDescription'][0].value)}..."></div>
 	  		</div>
 	  	</div>
@@ -209,11 +218,13 @@
  	  
 	  <div class="images" if.bind="mode==='images'">
 	  <div class="tabs">
-	     <div class="tab ${(predicate === activeLinkPredicate)?'active':''}" repeat.for="predicate of predicates" click.trigger="activateTab(predicate)"
-	     title="${predicate}">
-		   ${g[g[predicate]['rdfs:domain'][0].value]['term:prefLabel'][0].value} ${g[predicate]['term:prefLabel'][0].value} ${g[context]['term:prefLabel'][0].value}
+	     <div class="tab ${(predicate.curie === activeLinkPredicate)?'active':''}" repeat.for="predicate of predicates" click.trigger="activateTab(predicate.curie)"
+	     if.bind="!(['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange'].includes(predicate.curie))"
+	     title="${predicate.curie}">
+		   ${predicate.domainLabel } ${predicate.label} ${g[context].hasOwnProperty('class:hasPluralName')?g[context]['class:hasPluralName'][0].value:g[context]['term:prefLabel'][0].value}
 		  </div>
 	  </div>	  	
+	  	
 	  	<div class="listRefine">
 	  		<input type="search" value.bind="qRefine" placeholder="Refine" input.delegate="activateTab(activeLinkPredicate,true,false)"/>
 	  	</div>
@@ -221,8 +232,10 @@
 	  	<div class="pager"><span class="link" click.trigger="prevRefPage()">&#9664;</span> Page ${page + 1} of ${totalPages} <span class="link" click.trigger="nextRefPage()">&#9654;</span></div>
 	  	<div class="imageFrame">
 	  	<div repeat.for="link of visibleLinks" class="imageContainer">
+	  		<div class="imagesEntry">
 	  		<img src="${g[link]['term:hasPrimaryImageURL'][0].value}" if.bind="g[link].hasOwnProperty('term:hasPrimaryImageURL')" click.trigger="fetchContext(link)" class="thumbImage"/>
-	  		<div click.trigger="fetchContext(link)" class="link">${g[link]['term:prefLabel'][0].value}.&nbsp;</div>
+	  		<div click.trigger="fetchContext(link)" class="link imageCaption">${g[link]['term:prefLabel'][0].value}.&nbsp;</div>
+	  		</div>
 	  		<!--<span class="linkDescription">${g[link]['term:hasDescription'][0].value}</span>
 	  		<span class="link" click.trigger="fetchContext(g[link]['rdf:type'][0].value)">[${g[g[link]['rdf:type'][0].value]['term:prefLabel'][0].value}]</span>-->
 	  	</div>
@@ -245,6 +258,7 @@
 	</div>
 	<div class="description  expanded">
 		<div class="bodyDisplay" repeat.for="descrKey of ['term:hasDescription']" innerHTML="${filterBody(g[context][descrKey][0].value)}"></div>
+		<div class="aboutAuthor"> </div>
 	</div>
   </div>
 
@@ -415,7 +429,7 @@
  </div>
 
   
-  <modal view-model.ref="newModal" closed.delegate="processNewCard()">
+  <modal view-model.ref="newModal" closed.delegate="processNewCard()" class="newModal">
   	<div class="dlg-label">Title of Card</div>
     <div slot="header">
       <b>New ${g[context]['term:prefLabel'][0].value}</b>
@@ -426,7 +440,7 @@
 		<input type="file" change.trigger="setImage($event)"/>
 	</div> 
   	<div class="dlg-label">Body</div>
-	<div class="bodyEditor" innerhtml.two-way="activeCard.body" contenteditable="true"></div>
+	<div class="bodyEditor newModalBE" innerhtml.two-way="activeCard.body" contenteditable="true"></div>
 	<div class="dlg-property"  if.bind="context === 'class:_Class'">
 		<div class="dlg-label">Prefix</div>
 		<div class="prefix" contenteditable="true"  innerhtml.two-way="activeCard.prefix" input.delegate="updateClassNamespace()" placeholder="Prefix"></div>
@@ -480,7 +494,7 @@
 	<h2 innerhtml.two-way="activeCard.title" contenteditable="true" input.delegate="generateEntityId(context)"></h2>
 	<img class="cardImage" src="${activeCard.image}"/>
 	<div><span class="label">Image URL: </span><input value.two-way="activeCard.image" class="primaryImageEditField longInput"/></div> 
-	<div class="bodyEditor" innerhtml.two-way="activeCard.body" contenteditable="true"></div>
+	<div class="bodyEditor duplicateModalBE" innerhtml.two-way="activeCard.body" contenteditable="true"></div>
 	<div class="curie" innerhtml.two-way="activeCard.curie" contenteditable="true"></div>
 	<div slot="footer">
 		<div class="button" click.trigger="duplicateModal.close()">Save</div>
@@ -569,11 +583,15 @@
       <h3>Insert Term</h3>
 			<!--  change.delegate="activeClassSelected($event)" -->
 		<div class="property">
-			<div class="dlg-label">search:</div>
+			<div class="dlg-label">Search:</div>
 			<div class="dlg-value"><input value.bind="q" type="text" input.delegate="inputSearch()"/></div>
 		</div>
 		<div class="inputSearchList">
 			<div class="inputSearchItem link" repeat.for="searchItem of searchData.results" if.bind="$index<10" click.trigger="insertTerm(searchItem)">${searchItem.prefLabel}</div>
+		</div>
+		<div class="property">
+			<div class="dlg-label">Label:</div>
+			<div class="dlg-value"><input value.bind="insertTermLabel" type="text"/></div>
 		</div>
     </div>
 	<div slot="footer">
@@ -636,7 +654,7 @@
 		<div class="property" repeat.for="property of keys(g[context], ['rdf:type','term:prefLabel','term:hasPrimaryImageURL','term:hasDescription','vehicle:hasOptions','term:inGlossary','vehicle:hasVehicleComments', 
 		'term:hasIdentifier','term:hasSearchable'])">
 		  	<div class="label" title="${property}" click.trigger="fetchContext(property)"
-             if.bind="hasContent(context,property)"
+             
 		  	>${titleCase((g[property]['term:prefLabel'])?g[property]['term:prefLabel'][0].value:property)}:&nbsp;</div>
 		  	<div class="valueBlock">
 			  	<div class="value" repeat.for="item of wrapArray(g[context][property])">

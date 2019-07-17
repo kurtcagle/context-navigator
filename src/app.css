@@ -66,7 +66,12 @@ body {
 }
 .images .imageContainer {
 	width:320px;
-	border:solid 2px red;
+	display:block;
+}
+.imageCaption {
+	display:block;
+}
+.imagesEntry {
 	display:flex;
 	flex-direction:column;
 	align-items:center;
@@ -74,6 +79,7 @@ body {
 	padding:5px;
 
 }
+
 .images .thumbImage {
 	max-width:300px;
 	max-height:300px;
@@ -93,8 +99,8 @@ body {
 .leftPane {
 	display:flex;
 	flex-direction:column;
-	align-items:center;
-	justify-content:;
+	align-items:flex-start;
+	justify-content:flex-start;
 	width:400px;
 /*	border:solid 1px red;*/
 	background:var(--verticalGradient);
@@ -404,7 +410,7 @@ table td.inlineLabel {
 .value {display:block;}
 
 .imageFrame {
-	width:1200px;
+	width:100%;
 	display:flex;
 	flex-direction:row;
 	flex-wrap:wrap;
@@ -471,6 +477,17 @@ table td.inlineLabel {
  	/*overflow-y:auto;*/
 
  }
+
+.newModalBE {
+	height:200px;
+	overflow-y:scroll;
+}
+
+.duplicateModalBE {
+	height:200px;
+	overflow-y:scroll;
+}
+
  .cardTitleEdit input {
  	font-size:14pt;
  	font-weight:bold;
@@ -595,3 +612,5 @@ table td.inlineLabel {
 	font-family:Arial;
 	color:white;
 }
+
+.linkDate {font-style:italic;color:var(--contextBorderDarkerColor);}

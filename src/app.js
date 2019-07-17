@@ -13,6 +13,10 @@ export class App {
     this.searchData = {};
     this.history = [];
     this.mode=this.params.mode||"card";
+    this.sortMode = "dateDesc";
+    this.sortModeStates = [
+      {label:"Date Descending",value:"dateDesc"},
+      {label:"Alphanumeric",value:"alpha"}];
     this.namespace = '';
     this.activeLinkPredicate = null;
     this.visibleLinks = [];
@@ -35,6 +39,7 @@ export class App {
     this.loadBlocks();
     this.typedMessage = '';
     this.tempInsertTerm = "";
+    this.insertTermLabel = "";
     this.complianceItem={country:"", industry:"",strain:"",enzyme:"",product:"",complianceTest:"",
       noItemsMessage:`<div><p>No Compliance Tests Exist for this combination.</p><p>While this cannot guarantee that there are no compliance requirements,
       it does mean that Dupont has not yet developed a compliance test for this contingency, so you should check with regulatory compliance guidelines.</p></div>`};
@@ -73,7 +78,7 @@ export class App {
     ];
     this.selectedAction="selectAction";
     this.defaultCard = {title:"New Card",body:"This is a new card.",image:"",curie:"foo:bar",prefix:"",ns:"",datatype:"",nodeKind:"",
-domain:"",range:"",cardinality:""};
+domain:"",range:"",cardinality:"",sourceCurie:""};
     this.defaultNamespace = "http://semantical.llc/ns/";
     this.activeCard = Object.assign(this.defaultCard,{});
     this.linkPropertyList = {};
@@ -280,6 +285,8 @@ inputSearch(){
       this.activateTab(this.activeLinkPredicate,false);
     }
   	sort(){
+      console.log(this.sortMode);
+      let sortValue;
   		//console.log("Links");
   		//console.log(this.links);
   		this.links.forEach((link)=>{
@@ -294,12 +301,24 @@ inputSearch(){
   		//console.log(this.links);
   		//console.log("entering sort");
   		if (linkNodes.length>1){
-	  		linkNodes.sort((a,b)=>a["term:prefLabel"][0].value <= b["term:prefLabel"][0].value?-1:1)
+        if (this.sortMode === "alpha"){
+            sortValue = (a) => a.hasOwnProperty('term:prefLabel')?`${a["term:prefLabel"][0].value}`:"";
+	  		    linkNodes.sort((a,b)=>sortValue(a) <= sortValue(b)?-1:1)
+        }
+        if (this.sortMode === "dateDesc"){
+            sortValue = (a)=> a.hasOwnProperty('term:hasLastModifiedDate')?`${a["term:hasLastModifiedDate"][0].value}`:"";
+            linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
+
+        }
 	  	}
 	  	//console.log("Link Nodes");
   		//console.log(linkNodes);
   		this.links=linkNodes.map((node)=>node.link);
+      this.activateTab(this.activeLinkPredicate);
   	}
+
+
+
   	getQueryParams(){
   		var url = window.document.location.href;
   		var queryStr = url.split("?")[1];
@@ -316,7 +335,9 @@ inputSearch(){
   		}
   	}
   	displayLiteral(item){
-      switch(item.datatype){
+      if (!item){return ""}
+      let datatype = item.datatype||"xsd:string";
+      switch(datatype){
         case 'xsd:currency_usd':{return parseFloat(item.value).toLocaleString(["en-us"],{style:"currency",currency:"USD"})};
         case 'xsd:integer':{return parseInt(item.value).toLocaleString(["en-us"],{style:"decimal",maximumFractionDigits:0})};
         case 'xsd:float':{return parseFloat(item.value).toLocaleString(["en-us"],{style:"decimal",maximumFractionDigits:4})};
@@ -442,7 +463,13 @@ inputSearch(){
         })
     }
     editCard(editMode="edit"){
-       this.activeCard.title = this.g[this.context]['term:prefLabel'][0].value;
+       if (editMode === "edit"){
+         this.activeCard.title = this.g[this.context]['term:prefLabel'][0].value
+       }
+       else {
+         this.activeCard.title = this.g[this.context]['term:prefLabel'][0].value + " Copy";
+         this.activeCard.sourceCurie = this.context;
+       }
        this.activeCard.body = this.g[this.context]['term:hasDescription']!=null?this.g[this.context]['term:hasDescription'][0].value:"";
        console.log(this.g[this.context].hasOwnProperty('term:hasPrimaryImageURL'));
        this.activeCard.image = this.g[this.context]['term:hasPrimaryImageURL']!=null?this.g[this.context]['term:hasPrimaryImageURL'][0].value:"";
@@ -529,10 +556,12 @@ inputSearch(){
     this.cardEdit = false;
     let context = this.context;
     let curie = this.activeCard.curie;
-       this.g[this.context]['term:prefLabel'][0].value = this.activeCard.title;
+       this.g[this.context]['term:prefLabel'][0].value = this.activeCard.title!= ''?this.activeCard.title:`${this.tokenize((new Date()).toISOString())}`;
        this.g[this.context]['term:hasDescription']=[{datatype:"xsd:html",value:this.activeCard.body,type:"literal"}];
        this.g[this.context]['term:hasPrimaryImageURL'] = [{datatype:"xsd:imageURL",value:this.activeCard.image,type:"literal"}];
-
+       if (this.activeCard.sourceCurie != ''){
+         this.g[this.context]['term:hasSourceTerm'] = [{value:this.activeCard.sourceCurie,type:"uri"}];
+       }
     let buffer = [];
     let update = Object.keys(this.g[context]).forEach((predicate)=>{
       this.g[context][predicate].forEach((object)=>{
@@ -595,12 +624,10 @@ where {
           let prolog = Object.keys(this.ns).map((prefix)=>`prefix ${prefix}: <${this.ns[prefix]}>`).join('\n');
           let update = `${prolog}
   insert data {
-    graph graph:_data {
     ${item.value}
         a ${this.linkPropertyList[property].type};
         term:prefLabel "${item.label}"^^xsd:string;
         .
-    }
   }`;
         console.log(update);
         console.log("ToDo: Complete the update of the new entry.")
@@ -673,6 +700,9 @@ where {
     let context = ctx||this.context;
     this.context = context;
     this.activeCard = Object.assign(this.defaultCard,{});
+    this.activeCard.type = context;
+    this.activeCard.title = "";
+    this.activeCard.body = "";
 //    this.activeCard.domain = context;
     this.activeCard.image = Array.isArray(this.g[context]['term:hasPrimaryImageURL'])?this.g[context]['term:hasPrimaryImageURL'][0].value:"";
     if (context === 'class:_Property'){
@@ -691,7 +721,9 @@ where {
       title:`${this.g[this.context]['term:prefLabel'][0].value} Copy`,
       body:this.g[this.context].hasOwnProperty('term:hasDescription')?this.g[this.context]['term:hasDescription'][0].value:' ',
       image:this.g[this.context].hasOwnProperty('term:hasPrimaryImageURL')&&Array.isArray(this.g[this.context]['term:hasPrimaryImageURL'])?this.g[this.context]['term:hasPrimaryImageURL'][0].value:' ',
-      curie:`${this.context}_Copy`};
+      curie:`${this.context}_Copy`,
+      sourceCurie:this.context
+    };
     this.duplicateModal.open();
   }
   deleteCard(){
@@ -708,7 +740,8 @@ where {
             .then((response)=>response.text())
             .then((text)=>{
               console.log(text);
-              location.href =  `${this.client}?context=${cardType}&cache=replace`
+              //location.href =  `${this.client}?context=${cardType}&mode=list&cache=replace`
+              this.fetchContext(cardType,"list")
             })
             .catch((err)=>console.log(err));
      }  
@@ -716,36 +749,13 @@ where {
   }
   processNewCard(){
     console.log("processing card");
+    if (this.activeCard.title === ""){
+        let dt = new Date();
+        this.activeCard.title = `${dt}`;
+        this.activeCard.curie += this.tokenize(dt.toISOString());
+      }
+
     let prolog = Object.keys(this.ns).map((prefix)=>`prefix ${prefix}: <${this.ns[prefix]}>`).join('\n');
-    this.activeCard.type = this.context;
-/*    let update = `${prolog}
-  insert data {
-    graph graph:_data {
-    ${this.activeCard.curie}
-        a ${this.activeCard.type};
-        term:prefLabel """${this.summaryFilter(this.activeCard.title)}"""^^xsd:string;
-        term:hasDescription """${this.activeCard.body}"""^^termType:_HTML;
-        term:hasPrimaryImageURL "${this.activeCard.image}"^^termType:_Image;
-${this.type === 'class:_Class'?`
-        class:hasPrefix "${this.activeCard.prefix}"^^xsd:string;
-        class:hasNamespace "${this.activeCard.namespace}"^^xsd:anyURI;
-        class:hasPlural "${this.activeCard.plural}"^^xsd:string;
-`:''}
-${this.type === 'class:_Property'?`
-        property:hasDomain ${this.activeCard.domain};
-        property:hasNodeKind ${this.activeCard.nodeKind};
-        property:hasCardinality ${this.activeCard.cardinality};
-        ${this.activeCard.nodeKind === "nodeKind:_Literal"?
-          `property:hasDatatype ${this.activeCard.datatype};`:
-          `property:hasRange ${this.activeCard.range};`
-        }
-
-`:''}
-        .
-    }
-  }`;*/
-
-//        console.log(update);
         console.log("ToDo: Complete the update of the new entry.");
 
         if (this.activeCard.prefix != ''){
@@ -791,15 +801,14 @@ ${this.type === 'class:_Property'?`
         }})
     let update = `${prolog}
   insert data {
-    graph graph:_data {
     ${this.activeCard.curie}
         a ${this.g[this.context]['rdf:type'][0].value};
         term:prefLabel """${this.activeCard.title}"""^^xsd:string;
         term:hasDescription """${this.activeCard.body}"""^^termType:_HTML;
         term:hasPrimaryImageURL "${this.activeCard.image}"^^termType:_Image;
+        term:isDerivedFrom ${this.activeCard.sourceCurie};
         .
     ${triples.join('\n')}
-    }
 }`;
         console.log(update);
         let path = `${this.server}/lib/updateProperties.sjs?update=${encodeURI(update.replace(/(#)/g,"%%%"))}`;
@@ -838,6 +847,7 @@ ${this.type === 'class:_Property'?`
       else {
         let cleanTitle = this.summaryFilter(this.activeCard.title,128)
         var id = this.tokenize(cleanTitle);
+        if (id === ""){id = this.tokenize((new Date()).toISOString())}
         this.activeCard.curie = `${prefix}:_${id}`;
         this.activeCard.prefix = "";
         this.activeCard.namespace = "";
@@ -847,6 +857,7 @@ ${this.type === 'class:_Property'?`
       let cleanTitle = this.summaryFilter(this.activeCard.title,128)
       let  prefix = context.replace(/(.*)\:_.+?$/,"$1");
       var id = this.tokenize(cleanTitle);
+      if (id === ""){id = this.tokenize((new Date()).toISOString())}
       this.activeCard.curie = `${prefix}:_${id}`;
       this.activeCard.title = cleanTitle;
     }
@@ -1046,6 +1057,7 @@ filterComplianceTest(){
 
   clearConstraints(){
     this.constraints = [];
+    this.fetchContext(this.context,"list");
   }
   formatDoc(action,params={},gui=false){
     let editor = document.querySelector('.bodyEditor');
@@ -1125,6 +1137,7 @@ filterComplianceTest(){
     let selection = window.getSelection();
     this.q = selection.toString();
     this.tempInsertTerm = selection.toString();
+    this.insertTermLabel = this.tempInsertTerm;
     this.formatDoc('insertHTML',"%^%");
     this.inputSearch()
     this.insertTermModal.open()
@@ -1134,7 +1147,8 @@ filterComplianceTest(){
   console.log("Entering insertTerm()");
   this.insertTermModal.close();
   this.q = "";
-  let link = `<a href="/?context=${searchItem.s}" class="link">${searchItem.prefLabel}</a>`;
+  let label = (this.insertTermLabel != "")?this.insertTermLabel:searchItem.p
+  let link = `<a href="/?context=${searchItem.s}" class="link">${label}</a>`;
   let editor = document.querySelector('.bodyEditor');
   let html = editor.innerHTML;
   editor.innerHTML = html.replace("%^%",link)
@@ -1197,15 +1211,38 @@ filterComplianceTest(){
       header:`<h2>Author(s)</h2>`,
       footer:``,
       css:`.authorEntry {padding-bottom:10pt;}
+      .authorImage {max-width:160px}
       .jobTitle {font-size:10pt;font-style:italic;}
       `,
-      template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}')" class="authorEntry"
-      >
-        <img src="${graph[context]['term:hasPrimaryImageURL'][0].value}"
-          style="max-width:160px"
-        />
+      template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}')" class="authorEntry">
+        <img src="${graph[context]['term:hasPrimaryImageURL'][0].value}"/>
         <div class="link">${graph[context]['term:prefLabel'][0].value}</div>
         <div class="jobTitle">${graph[context]['author:hasTitle'][0].value}</div>
+        </div>`
+    },
+{
+      type:"sp",
+      predicate:'document:hasAuthor',
+      selector:'.aboutAuthor',
+      html:``,
+      header:``,
+      footer:``,
+      css:`.aboutAuthor_1 {
+        padding-bottom:10pt;
+        display:block;
+        border-top:solid 1px var(--contextBorderDarkColor);
+        padding-top:20px;
+      }
+      .authorImage {
+        max-width:160px;
+        float:left;
+        margin-right:10px;
+        margin-bottom:10px;}
+      .authorDescription {font-size:10pt;font-style:italic;display:block}
+      `,
+      template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}')" class="aboutAuthor_1">
+        <div class="authorDescription"><img src="${graph[context]['term:hasPrimaryImageURL'][0].value}" class="authorImage"/>
+        ${graph[context]['term:hasDescription'][0].value}</div>
         </div>`
     },
     {
@@ -1216,11 +1253,8 @@ filterComplianceTest(){
       html:``,
       header:`<h2>Topic(s)</h2>`,
       footer:``,
-      css:`.authorEntry {padding-bottom:10pt;}
-      .jobTitle {font-size:10pt;font-style:italic;}
-      `,
-      template:(context,graph,index,count) =>`<span onclick="window.app.fetchContext('${context}')" class="topic link" 
-      >${graph[context]['term:prefLabel'][0].value}</span>`
+      css:``,
+      template:(context,graph,index,count) =>`<span onclick="window.app.fetchContext('${context}')" class="topic link">${graph[context]['term:prefLabel'][0].value}</span>`
     }]
 
   }

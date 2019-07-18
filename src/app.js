@@ -166,7 +166,8 @@ domain:"",range:"",cardinality:"",sourceCurie:""};
       else {
         console.log(err);
         this.wait = false;
-      }}
+      }})
+    
   }
 
 

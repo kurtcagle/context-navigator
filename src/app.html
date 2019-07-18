@@ -51,7 +51,7 @@
 <!--  	  	   <div class="button ${mode==='compliance'?'selected':''}" click.trigger="setMode('compliance')">Compliance</div> -->
 <!--  	  	   <div class="button ${mode==='ingestion'?'selected':''}" click.trigger="setMode('ingestion')">Ingestion</div>-->
  	  	   <div class="button ${mode==='sparql'?'selected':''}" click.trigger="setMode('sparql')" if.bind="userRole.has('accountRole:_Sparql')">SPARQL</div>
- 	  	   <div class="button ${mode==='namespaces'?'selected':''}" click.trigger="setMode('namespaces')">Namespaces</div>
+ 	  	   <div class="button ${mode==='namespaces'?'selected':''}" click.trigger="setMode('namespaces')" if.bind="userRole.has('accountRole:_Sparql')">Namespaces</div>
  	  	   <div class="button ${mode==='search'?'selected':''}" click.trigger="setMode('search')">Search</div>
    	  </div>
       </div>

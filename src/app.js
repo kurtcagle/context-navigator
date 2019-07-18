@@ -158,7 +158,15 @@ domain:"",range:"",cardinality:"",sourceCurie:""};
         //console.log(this.predicates)
   			//console.log(json)
   		})
-  	.catch((err)=>{console.log(err);this.wait = false;})
+  	.catch((err)=>{
+      console.log("Error");
+      if (!this.g.hasOwnProperty('report:_')){
+        this.fetchContext('page:_404_TermNotFound','card');
+      }
+      else {
+        console.log(err);
+        this.wait = false;
+      }}
   }
 
 
@@ -1069,7 +1077,10 @@ filterComplianceTest(){
        let selection = window.getSelection();
        let text = selection.toString();
        let link = `<a href="${sLnk}" target="_blank">${text}</a>`;
-       this.formatDoc('insertHTML',link)}
+       //this.formatDoc('insertHTML',link)}
+       document.execCommand('insertHTML',link,false); 
+       editor.focus();
+     }
   }
   setForeColor(evt){
     console.log(evt);
@@ -1172,10 +1183,11 @@ filterComplianceTest(){
     //console.log(context,property);
     return (property === 'link')?true:!this.g[context][property][0].value.match(/\:_$/)
   }
-  deleteClassItems(){
-    if (confirm(`Warning! This will delete the class "${this.g[this.context]['term:prefLabel'][0].value}", all properties for that class and all items in the class. It can not be undone. Are you sure you want to continue?`  )){
+  deleteClassItems(clearClass=false){
+    let message = clearClass?`Warning! This will delete the class "${this.g[this.context]['term:prefLabel'][0].value}", all properties for that class and all items in the class. It can not be undone. Are you sure you want to continue?`:`Warning! This will remove all items from this class (but keep class and properties). It cannot be undone. Are you sure you want to continue?`;
+    if (confirm(message)){
       console.log("Delete class items");
-      let path = `${this.server}/lib/deleteClassItems.sjs?context=${this.context}`;
+      let path = `${this.server}/lib/deleteClassItems.sjs?context=${this.context}&removeClass=${clearClass?'true':'false'}`;
       window.fetch(path)
       .then((response)=>response.text())
       .then((text)=>{
@@ -1256,7 +1268,19 @@ filterComplianceTest(){
       footer:``,
       css:``,
       template:(context,graph,index,count) =>`<span onclick="window.app.fetchContext('${context}')" class="topic link">${graph[context]['term:prefLabel'][0].value}</span>`
-    }]
+    } ,
+    {
+      type:"self",
+      predicate:"page:hasPreviousPage",
+      selector:'.previousPage',
+      separator:'',
+      html:``,
+      header:``,
+      footer:``,
+      css:``,
+      template:(context,graph,index,count) =>`<span onclick="window.app.fetchContext('${context}')" class="link">${graph[context]['term:prefLabel'][0].value}</span>`
+    } 
+    ]
 
   }
 
@@ -1297,11 +1321,12 @@ refreshBlocks(){
       if (block.type === "self"){
         console.log("Entering self");
         if (this.g[this.context].hasOwnProperty(block.predicate)){
+          console.log(this.g[this.context][block.predicate]);
           let count = this.g[this.context][block.predicate].length;
           let index = -1;          
           let graph = this.g;
           let contexts = this.g[this.context][block.predicate].map((object)=>object.value);
-          block.html += contexts.map((context)=>block.template(context,graph,index,count)).join(block.separator);
+          block.html += contexts.map((context)=>!this.isNullLink(context)?block.template(context,graph,index,count):'').join(block.separator);
           block.html += `${block.footer}</div>`;
           targets.forEach((target)=>{
              target.innerHTML = block.html;
@@ -1310,6 +1335,16 @@ refreshBlocks(){
         }
       }
     })
+  }
+  isNullLink(context){
+    return (context.match(/:_$/))
+  }
+  getValidLink(context,property){
+    if (this.g[context].hasOwnProperty(property)){
+      let validLink = this.g[context][property].find((value)=>!this.isNullLink(value));
+      return validLink;
+    }
+    else {return false;}
   }
 }
 

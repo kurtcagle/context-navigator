@@ -535,7 +535,8 @@ define('app',['exports', 'aurelia-router', 'aurelia-cookie'], function (exports,
       if (linkNodes.length > 1) {
         if (this.sortMode === "alpha") {
           sortValue = function sortValue(a) {
-            return a.hasOwnProperty('term:prefLabel') ? '' + a["term:prefLabel"][0].value : "";
+            var item = a["term:prefLabel"][0].value.trim();
+            return item;
           };
           linkNodes.sort(function (a, b) {
             return sortValue(a) <= sortValue(b) ? -1 : 1;

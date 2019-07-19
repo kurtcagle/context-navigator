@@ -310,8 +310,11 @@ inputSearch(){
   		//console.log("entering sort");
   		if (linkNodes.length>1){
         if (this.sortMode === "alpha"){
-            sortValue = (a) => a.hasOwnProperty('term:prefLabel')?`${a["term:prefLabel"][0].value}`:"";
-	  		    linkNodes.sort((a,b)=>sortValue(a) <= sortValue(b)?-1:1)
+            sortValue = (a) => {
+              let item = a["term:prefLabel"][0].value.trim();
+              return item;
+            }
+            linkNodes.sort((a,b)=>sortValue(a) <= sortValue(b)?-1:1)
         }
         if (this.sortMode === "dateDesc"){
             sortValue = (a)=> a.hasOwnProperty('term:hasLastModifiedDate')?`${a["term:hasLastModifiedDate"][0].value}`:"";

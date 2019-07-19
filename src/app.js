@@ -704,7 +704,7 @@ where {
 
 
 
-  newCard(ctx){
+  newCard(ctx,asProperty=false){
     let context = ctx||this.context;
     this.context = context;
     this.activeCard = Object.assign(this.defaultCard,{});
@@ -719,7 +719,17 @@ where {
       this.activeCard.datatype = '';
       this.activeCard.cardinality = '';
     }
-    this.generateEntityId(context);
+    else if (asProperty === true){
+      this.context = "class:_Property";
+      this.activeCard.domain = context;
+      this.activeCard.type = "class:_Property";
+      this.activeCard.nodeKind = 'nodeKind:_IRI';
+      this.activeCard.range = '';
+      this.activeCard.datatype = '';
+      this.activeCard.cardinality = 'cardinality:_ZeroOrMore';
+ 
+    }
+    this.generateEntityId(this.context);
     this.newModal.open();
   }
 

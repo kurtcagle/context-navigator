@@ -176,6 +176,7 @@
 	  	</div>
 	  	<div class="buttons">
 	  	<div class="button" click.trigger="newCard()" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Create')">New ${g[context]['term:prefLabel'][0].value}</div>
+	  	<div class="button" click.trigger="newCard(context,true)" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Create')">Add Property</div>
 	  	<div class="button" click.trigger="newCard(g[context]['rdf:type'][0].value)" if.bind="(!context.startsWith('class:')) && userRole.has('accountRole:_Create')">New ${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>	  	
 	  	<div class="button" click.trigger="deleteClassItems(false)" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Delete')  && (context != 'class:_Class') && (context != 'class:_Property')">Clear Items In ${g[context]['term:prefLabel'][0].value}</div>
 	  	<div class="button" click.trigger="deleteClassItems(true)" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Delete')  && (context != 'class:_Class') && (context != 'class:_Property')">Delete Class, Properties and Items In ${g[context]['term:prefLabel'][0].value}</div>

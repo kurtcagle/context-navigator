@@ -176,10 +176,16 @@ body {
 .property .value {
 	display:flex;
 	flex-direction: row;
-
 }
+
 .property .label {
 	display:block;
+}
+
+.longWord {
+	/*overflow-x:hidden;
+	max-width:350px;*/
+	overflow-wrap: break-word
 }
 .linkImage {
 	max-width:100px;
@@ -614,3 +620,22 @@ table td.inlineLabel {
 }
 
 .linkDate {font-style:italic;color:var(--contextBorderDarkerColor);}
+
+.insertedImage {
+	max-width:500px;
+}
+.centerPaneAddons {
+	width:780px;
+	margin:10px;
+	font-family:Arial;
+	//grid-area:card;
+	display:block;	
+}
+.centerPaneAddons .block {
+	border:solid 2px var(--contextBorderColor);
+	border-radius:12px;
+	padding:15px;
+
+}
+
+

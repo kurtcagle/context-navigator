@@ -38,7 +38,7 @@ export class App {
     this.blocks = [];
     this.loadBlocks();
     this.typedMessage = '';
-    this.insertTermObj = {label:"",value:"",temp:""};
+    this.insertTermObj = {label:"",value:"",temp:"",asImage:false,image:""};
     this.complianceItem={country:"", industry:"",strain:"",enzyme:"",product:"",complianceTest:"",
       noItemsMessage:`<div><p>No Compliance Tests Exist for this combination.</p><p>While this cannot guarantee that there are no compliance requirements,
       it does mean that Dupont has not yet developed a compliance test for this contingency, so you should check with regulatory compliance guidelines.</p></div>`};
@@ -356,6 +356,7 @@ inputSearch(){
         case 'unit:_Mile':{return `${parseInt(item.value).toLocaleString(["en-us"],{style:"decimal",maximumFractionDigits:1})} miles`};
         case "xsd:dateTime":{return `${(new Date(item.value)).toLocaleString(["en-us"],{ timeZone: 'UTC' } )}`};
         case "termType:_Image":return `<a href="${item.value}" target="_blank"><img src="${item.value}" class="imageThumbnail"/></a>`;
+        case "xsd:textLiteral":return item.value;
         case "xsd:imageURL":return `<div class="internalImageContainer"><a href="${item.value}" target="_blank"><img src="${item.value}" class="link internalImage"/></a></div`;
         case "xsd:hexColor":return `<div class="colorSwatchContainer">
           <div class="colorSwatch" style="background-color:${item.value}">&nbsp;</div>
@@ -1092,7 +1093,7 @@ filterComplianceTest(){
        let text = selection.toString();
        let link = `<a href="${sLnk}" target="_blank">${text}</a>`;
        //this.formatDoc('insertHTML',link)}
-       document.execCommand('insertHTML',link,false); 
+       document.execCommand('insertHTML',false,link); 
        editor.focus();
      }
   }
@@ -1157,7 +1158,7 @@ filterComplianceTest(){
   }
 
  insertTermDlg(){
-    this.insertTermObj = {label:"",value:"",temp:""};
+    this.insertTermObj = {label:"",value:"",temp:"",asImage:false,image:""};
     let editor = document.querySelector('.bodyEditor');
     let selection = window.getSelection();
     this.q = selection.toString();
@@ -1172,7 +1173,14 @@ filterComplianceTest(){
   console.log("Entering insertTerm()");
   this.q = "";
   let label = this.insertTermObj.temp;
-  let link = `<a href="/?context=${this.insertTermObj.value}" class="link">${label}</a>`;
+  console.log(this.insertTermObj.asImage);
+  let link = (this.insertTermObj.asImage==="image")?`
+     <div class="insertedImageContainer">
+        <a href="/?context=${this.insertTermObj.value}" class="link">
+          <img src="${this.insertTermObj.image}" class="insertedImage"/>
+          <div class="imageCaption">${this.insertTermObj.temp}</div>
+        </a>
+      </div>`:`<a href="/?context=${this.insertTermObj.value}" class="link">${label}</a>`;
   let editor = document.querySelector('.bodyEditor');
   let html = editor.innerHTML;
   editor.innerHTML = html.replace("%^%",link)
@@ -1191,6 +1199,11 @@ filterComplianceTest(){
  updateInsertTerm(){
   let searchItem = this.searchData.results.find((searchItem)=>searchItem.s === this.insertTermObj.value);
   this.insertTermObj.temp = searchItem.prefLabel;  
+ }
+
+  updateInsertImage(){
+  let searchItem = this.searchData.results.find((searchItem)=>searchItem.s === this.insertTermObj.value);
+  this.insertTermObj.image = searchItem.imageURL;
  }
 
   hasContent(context,property){
@@ -1233,8 +1246,9 @@ filterComplianceTest(){
 {
       type:"sp",
       predicate:'document:hasAuthor',
-      selector:'.byline',
+      selector:'byline',
       html:``,
+      container:'leftPane',
       header:`<h2>Author(s)</h2>`,
       footer:``,
       css:`.authorEntry {padding-bottom:10pt;}
@@ -1250,34 +1264,38 @@ filterComplianceTest(){
 {
       type:"sp",
       predicate:'document:hasAuthor',
-      selector:'.aboutAuthor',
+      selector:'aboutAuthor',
       html:``,
+      container:"centerPaneAddons",
       header:``,
       footer:``,
       css:`.aboutAuthor_1 {
         padding-bottom:10pt;
-        display:block;
-        border-top:solid 1px var(--contextBorderDarkColor);
+        display:flex;
+        flex-direction:row;
+        justify-content:flex-start;
         padding-top:20px;
       }
       .authorImage {
         max-width:160px;
-        float:left;
+        display:block;
         margin-right:10px;
         margin-bottom:10px;}
       .authorDescription {font-size:10pt;font-style:italic;display:block}
       `,
       template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}')" class="aboutAuthor_1">
-        <div class="authorDescription"><img src="${graph[context]['term:hasPrimaryImageURL'][0].value}" class="authorImage"/>
+        <img src="${graph[context]['term:hasPrimaryImageURL'][0].value}" class="authorImage"/>
+        <div class="authorDescription">
         ${graph[context]['term:hasDescription'][0].value}</div>
         </div>`
     },
     {
       type:"self",
       predicate:"document:hasTopic",
-      selector:'.topics',
+      selector:'topics',
       separator:', ',
       html:``,
+      container:'leftPane',
       header:`<h2>Topic(s)</h2>`,
       footer:``,
       css:``,
@@ -1286,9 +1304,10 @@ filterComplianceTest(){
     {
       type:"self",
       predicate:"page:hasPreviousPage",
-      selector:'.previousPage',
+      selector:'previousPage',
       separator:'',
       html:``,
+      container:'leftPane',
       header:``,
       footer:``,
       css:``,
@@ -1297,11 +1316,22 @@ filterComplianceTest(){
     ]
 
   }
-
 refreshBlocks(){
     this.blocks.forEach((block)=>{
+      let container = document.querySelector(`.${block.container}`);
+      if (container != null){
+        container.innerHTML = " ";
+      }
+    })
+    this.blocks.forEach((block)=>{
+      let container = document.querySelector(`.${block.container}`);
+      if (container!=null){
+      if (!container.querySelector(`.${block.selector}`))
+      {
+        container.innerHTML += `<div class="${block.selector}"> </div>`
+      }
       block.html = `<style type="text/css">${block.css}</style><div class="block">${block.header}`;
-      let targets = Array.from(document.querySelectorAll(block.selector));
+      let targets = Array.from(document.querySelectorAll(`.${block.selector}`));
       targets.forEach((target)=>target.innerHTML = "");
       console.log(block);
       if (block.type === "sp"){
@@ -1319,7 +1349,7 @@ refreshBlocks(){
             index += 1;
           })
           .then(()=>{
-              let targets = Array.from(document.querySelectorAll(block.selector));
+              let targets = Array.from(document.querySelectorAll(`.${block.selector}`));
               if (index + 1 === count){
                 block.html += `${block.footer}</div>`;
                 //console.log(block.html);
@@ -1348,6 +1378,7 @@ refreshBlocks(){
 
         }
       }
+    }
     })
   }
   isNullLink(context){

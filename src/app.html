@@ -35,9 +35,9 @@
   </div>
   <div class="paneContainer">
   <div class="leftPane">
-	<div class="byline"> </div>
+<!--	<div class="byline"> </div>
 	<div class="topics"> </div>
-	<div class="previousPage"></div>
+	<div class="previousPage"></div>-->
   </div>	
   <div class="centerPane">
   <div class="display">
@@ -71,7 +71,8 @@
 			  	<div class="value" repeat.for="item of wrapArray(g[context][property])">
 			  		<span class="link" if.bind="item.type==='uri'" click.trigger="fetchContext(item.value)">${g[item.value]['term:prefLabel'][0].value}<span if.bind="!$last">,&nbsp;</span>
 			  		</span>
-			  		<span class="value" if.bind="item.type==='literal'" title="${item.datatype}"><span innerhtml="${displayLiteral(item)}"></span> 
+			  		<span class="value" if.bind="item.type==='literal'" title="${item.datatype}"><span innerhtml="${displayLiteral(item)}"
+			  			css="item.datatype.startsWith('xsd:textLiteral')?'display:block;word-space:pre':''"></span> 
 			  			<span class="link" click.trigger="fetchContext(item.datatype)" if.bind="g[item.datatype]['term:prefLabel'].length > 0 ">[${g[item.datatype]["term:prefLabel"][0].value}]</span><span if.bind="!$last && $index != 0">, </span>
 			  		</span>
 			  	</div>
@@ -142,6 +143,11 @@
 				  		<div class="bodyEditor" innerhtml.two-way="item.value" contenteditable="true"></div>
 				  		<button click.trigger="deleteItem($index,g[context][property])">X</button>
 			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:textLiteral')" title="${item.value}">
+				  		<textarea class="bodyEditor" value.bind="item.value"></textarea>
+				  		<button click.trigger="deleteItem($index,g[context][property])">X</button>
+			  		</span>
+
 			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:gYear')" title="${item.value}">
 			  			<input type="number" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property])">X</button>
 			  		</span>
@@ -186,7 +192,7 @@
 	  		<select value.bind="sortMode" change.delegate="sort()">
 	  			<option repeat.for="sortModeState of sortModeStates" value.bind = "sortModeState.value">${sortModeState.label}</option>
 	  		</select>
-	  		<div class="button" click.trigger="reverse()">${reversed?"Drive":"Reverse"}</div>
+	  		<div class="button" click.trigger="reverse()">${reversed?"Ascending":"Descending"}</div>
 	  	</div>
 	  	<div class="pager"><span class="link" click.trigger="prevRefPage()">&#9664;</span> Page ${page + 1} of ${totalPages} <span class="link" click.trigger="nextRefPage()">&#9654;</span></div>
 	  	<div class="constraintsBlock">
@@ -233,7 +239,13 @@
 	  	<div class="listRefine">
 	  		<input type="search" value.bind="qRefine" placeholder="Refine" input.delegate="activateTab(activeLinkPredicate,true,false)"/>
 	  	</div>
-	  	<div>Item Count = ${itemCount} <div class="button" click.trigger="reverse()">${reversed?"Drive":"Reverse"}</div></div>
+	  	<div>Item Count = ${itemCount}</div>
+	  	<div class="sortField">
+	  		<select value.bind="sortMode" change.delegate="sort()">
+	  			<option repeat.for="sortModeState of sortModeStates" value.bind = "sortModeState.value">${sortModeState.label}</option>
+	  		</select>
+	  		<div class="button" click.trigger="reverse()">${reversed?"Ascending":"Descending"}</div>
+	  	</div>
 	  	<div class="pager"><span class="link" click.trigger="prevRefPage()">&#9664;</span> Page ${page + 1} of ${totalPages} <span class="link" click.trigger="nextRefPage()">&#9654;</span></div>
 	  	<div class="imageFrame">
 	  	<div repeat.for="link of visibleLinks" class="imageContainer">
@@ -266,8 +278,8 @@
 	</div>
 	<div class="description  expanded">
 		<div class="bodyDisplay" repeat.for="descrKey of ['term:hasDescription']" innerHTML="${filterBody(g[context][descrKey][0].value)}"></div>
-		<div class="aboutAuthor"> </div>
 	</div>
+	<hr/>
   </div>
 
   <div class="card"  if.bind="mode==='card' && cardEdit === true">	
@@ -543,12 +555,15 @@
 		<div class="property" if.bind="activeProperty.nodeKind === 'nodeKind:_Literal' && activeProperty.datatype ==='xsd:imageURL'" >
 			<div class="dlg-label">Paste in Image URL:</div>
 		    <img src.bind="activeProperty.value" class="imageMedium"/> 
-			<div class="dlg-value"><input type="text" value.bind = "activeProperty.value" class="longInput"/>
-				</div>
+			<div class="dlg-value"><input type="text" value.bind = "activeProperty.value" class="longInput"/></div>
 		</div>
 		<div class="property" if.bind="activeProperty.nodeKind === 'nodeKind:_Literal' && activeProperty.datatype ==='xsd:htmlLiteral'" >
 			<div class="dlg-label">HTML Content:</div>
 			<div class="dlg-value" innerhtml.two-way="activeProperty.value" contenteditable="true"></div>
+		</div>
+		<div class="property" if.bind="activeProperty.nodeKind === 'nodeKind:_Literal' && activeProperty.datatype ==='xsd:textLiteral'" >
+			<div class="dlg-label">Multiline Text Content:</div>
+			<div class="dlg-value" textcontent.bind="activeProperty.value" contenteditable="true"></div>
 		</div>
 		<div class="property" if.bind="activeProperty.nodeKind === 'nodeKind:_Literal' && (activeProperty.datatype === 'xsd:hexColor')" >
 			<div class="dlg-label">Value:</div>
@@ -597,7 +612,7 @@
 		</div>
 		<div class="property">
 			<div class="dlg-label">Link:</div>
-			<select class="inputSearchList" value.bind="insertTermObj.value">
+			<select class="inputSearchList" value.bind="insertTermObj.value" change.delegate="updateInsertImage()">
 				<option value="" disabled="disabled">Search for an item above.</option>
 				<option class="inputSearchItem link" value.bind="searchItem.s" repeat.for="searchItem of searchData.results" if.bind="$index<10">${searchItem.prefLabel}</option>
 			</select>
@@ -605,6 +620,16 @@
 		<div class="property">
 			<div class="dlg-label">Label:</div>
 			<div class="dlg-value"><input value.bind="insertTermObj.temp" type="text"/><div class="button" click.trigger="updateInsertTerm()">Use Term Label</div></div>
+		</div>
+		<div class="property">
+			<div class="dlg-label">Image:</div>
+			<div class="dlg-value"><img class="imageThumbnail" src.bind="insertTermObj.image"/></div>
+		</div>		
+		<div class="property">
+			<div class="dlg-label"><select value.bind="insertTermObj.asImage">
+				<option value="text">Insert As Linked Text</option>
+				<option value="image">Insert As Image</option>
+			</select></div>
 		</div>
     </div>
 	<div slot="footer">
@@ -660,6 +685,7 @@
 	</div>
   </modal>
   </div>
+  	<div class="centerPaneAddons"><!-- Empty --></div>
 </div>
   <div class="rightPane">	
 	<div class="sideProperties">
@@ -685,7 +711,7 @@
 		  </div>-->
 		  <div class="property">
 			  <div class="label">Has Curie</div>
-	 	      <div click.trigger="fetchContext(context)" class="link">${context}</div>
+	 	      <div click.trigger="fetchContext(context)" class="longWord">${context}</div>
 		</div>
 	 </div>
   </div>

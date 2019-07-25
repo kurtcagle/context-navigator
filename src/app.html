@@ -3,6 +3,7 @@
   <require from="./modalCustomElement"></require>
   <require from="ObjectKeysValueConverter"></require>
   <require from="SortedObjectKeysValueConverter"></require>
+  <div class="outer ${theme}">
   <div class="container ${wait?'wait':''}">
   <div class="header">
   	  <div class="headerBlock">
@@ -27,7 +28,7 @@
    	  	<div class="button" click.trigger="logout()" if.bind="loginData.status">Log out</div>
    	  	<div class="button" click.trigger="launchService()">JSON</div>
 		<div class="button" click.trigger="launchSeo()">SEO</div>
-		<div class="button" click.trigger="pinPage()">Pin</div>
+		<div class="button" click.trigger="launchPage()">New Tab</div>
 		<div class="button" click.trigger="pinPage(true)">Refresh</div>
 		<div class="button" click.trigger="cache='cached'">Cache</div>
 
@@ -44,7 +45,7 @@
   	  <div class="modeFrame">
   	  <div class="modeButtons">
   	  	   <div class="button ${mode==='card'?'selected':''}" click.trigger="setMode('card')">Card</div>
-  	  	   <div class="button ${mode==='properties'?'selected':''}" click.trigger="setMode('properties')">Properties</div>
+  	  	   <div class="button ${mode==='properties'?'selected':''}" click.trigger="setMode('properties')"  if.bind="userRole.has('accountRole:_Create')">Properties</div>
   	  	   <div class="button ${mode==='list'?'selected':''}" click.trigger="setMode('list')">List</div>
   	  	   <div class="button ${mode==='graph'?'selected':''}" click.trigger="setMode('graph')">Graph</div>
   	  	   <div class="button ${mode==='images'?'selected':''}" click.trigger="setMode('images')">Images</div>
@@ -250,7 +251,7 @@
 	  	<div class="imageFrame">
 	  	<div repeat.for="link of visibleLinks" class="imageContainer">
 	  		<div class="imagesEntry">
-	  		<img src="${g[link]['term:hasPrimaryImageURL'][0].value}" if.bind="g[link].hasOwnProperty('term:hasPrimaryImageURL')" click.trigger="fetchContext(link)" class="thumbImage"/>
+	  		<img src="${g[link]['term:hasPrimaryImageURL'][0].value}" if.bind="g[link].hasOwnProperty('term:hasPrimaryImageURL')" click.trigger="fetchContext(link)" class="thumbImage link"/>
 	  		<div click.trigger="fetchContext(link)" class="link imageCaption">${g[link]['term:prefLabel'][0].value}.&nbsp;</div>
 	  		</div>
 	  		<!--<span class="linkDescription">${g[link]['term:hasDescription'][0].value}</span>
@@ -285,16 +286,16 @@
   <div class="card"  if.bind="mode==='card' && cardEdit === true">	
 	<div class="buttons">
 		<div class="button" click.trigger="saveCardProperties()">Save</div>
-		<div class="button" click.trigger="revertCard()">Revert</div>
+		<div class="button" click.trigger="revertCard()">Cancel</div>
 	</div>
-	<div class="cardTitle" innerhtml.two-way="activeCard.title" if.bind="editMode === 'duplicate'" contenteditable="true" input.delegate="generateEntityId(context)"></div>
-	<div class="cardTitle" innerhtml.two-way="activeCard.title"  if.bind="editMode === 'edit'" contenteditable="true"></div>
-	<div class="property"  if.bind="editMode === 'duplicate'" >
+	<div if.bind="editMode === 'duplicate'" ><input type="text" class="cardTitle longInput" value.bind="activeCard.title" input.delegate="generateEntityId(context)"></div>
+	<div if.bind="editMode === 'edit'" ><input type="text" class="cardTitle longInput" value.bind="activeCard.title"></input></div>
+	<div class="property"  if.bind="editMode === 'duplicate'">
 		<div class="dlg-label">Curie</div>
 		<div class="curie" contenteditable="true"  innerhtml.two-way="activeCard.curie" placeholder="Condensed URI or Curie"></div>
 	</div>
 	<img class="cardImage" src="${activeCard.image}"/>
-	<div><span class="label">Image URL: </span><input value.two-way="activeCard.image" class="primaryImageEditField longInput"/>
+	<div><span class="label">Image URL: </span><input value.two-way="activeCard.image" class="primaryImageEditField longInput" input.delegate="createImageFile(activeCard.curie)"/>
 		<input type="file" change.trigger="setImage($event)"/>
 	</div>
 	<div class="editorButtons">
@@ -333,6 +334,7 @@
 		</select> 
 		<button click.trigger="formatDoc('insertHorizontalRule')">&lt;HR&gt;</button>
 		<button click.trigger="insertTermDlg()">Insert Term</button>
+		<button click.trigger="insertCodeBlock()">Insert Code Block</button>
 	</div>
 <!--	<div><button click.trigger="displayFullBody = true" if.bind="!displayFullBody">Expand</button><button click.trigger="displayFullBody = false" if.bind="displayFullBody">Collapse</button></div>-->
 	<div class="description expanded">
@@ -451,13 +453,14 @@
 
   
   <modal view-model.ref="newModal" closed.delegate="processNewCard()" class="newModal">
-  	<div class="dlg-label">Title of Card</div>
     <div slot="header">
       <b>New ${g[context]['term:prefLabel'][0].value}</b>
     </div>
-    <div class="cardTitleEdit"><input value.bind="activeCard.title" input.delegate="generateEntityId(context)"/></div>
+    <div>
+  	<div class="dlg-label">Title of Card</div>
+    <div class="cardTitleEdit"><input value.bind="activeCard.title" input.delegate="generateEntityId(context)" class="longInput"/></div>
 	<img class="cardImage" src="${activeCard.image}"/>
-	<div><span class="label">Image URL: </span><input value.bind="activeCard.image" class="primaryImageEditField longInput"/>
+	<div><span class="label">Image URL: </span><input value.bind="activeCard.image" class="primaryImageEditField longInput"  input.delegate="createImageFile(activeCard.curie)"/>
 		<input type="file" change.trigger="setImage($event)"/>
 	</div> 
   	<div class="dlg-label">Body</div>
@@ -501,6 +504,7 @@
 	<div class="property">
 		<div class="dlg-label">Curie</div>
 		<div class="curie" contenteditable="true"  innerhtml.two-way="activeCard.curie" placeholder="Condensed URI or Curie"></div>
+	</div>
 	</div>
 	<div slot="footer">
 		<div class="button" click.trigger="newModal.close()">Create</div>
@@ -647,7 +651,7 @@
     <div slot="body">
 		<div class="property">
 			<div class="dlg-label">Image URL:</div>
-			<div class="dlg-value"><input value.bind="editImage.src" class="longInput"/></div>
+			<div class="dlg-value"><input value.bind="editImage.src" class="longInput"></input></div>
 		</div>
 		<div class="property">
 			<div class="dlg-label">Width:</div>
@@ -719,7 +723,6 @@
   <div class="footer">
   	<div class="copyright">Copyright 2019 Semantical LLC.</div>
   </div>
-
 </div>
 	<modal view-model.ref="loginModal" closed.delegate="processLogin()">
     <div slot="header">Log In</div>
@@ -738,6 +741,7 @@
 		<div class="button" click.trigger="loginModal.cancel()">Cancel</div>
 	</div>
   </modal>
+ </div>
 </template>
 
 

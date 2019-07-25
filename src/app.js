@@ -5,6 +5,7 @@ export class App {
   constructor() {
     //this.userRole = new Set([]);
     window.app = this;
+    this.theme = "red";
   	this.params = this.getQueryParams()||{};
     this.context = this.params != null?this.params.context||"page:_Home":"page:_Home";
     this.qRefine = this.params.qr||"";
@@ -390,14 +391,13 @@ inputSearch(){
     }
   	pinPage(refresh=true,mode="card"){
       //console.log(this.context);
-  		window.location.href = `${this.client}/?context=${this.context}${refresh?`&cache=refresh&mode=${mode}`:''}`;
+  		window.location.href = `${this.client}/?context=${this.context}${refresh?`&cache=refresh&mode=${this.mode}`:''}`;
   	}
-  	launchPage(){
-  		window.open(`${this.client}/?context=${this.context}`,'')
-  	}
-  	linkCount(){
 
+  	launchPage(){
+  		window.open(`${this.client}/?context=${this.context}&cache=refresh&mode=${this.mode}`)
   	}
+
   	goBack(){
   		if (this.history.length > 1){
   			//this.history.pop();
@@ -700,12 +700,11 @@ where {
           this.userRole = new Set(this.loginData.permissions);
           if (!this.loginData.status){alert("Log-in failed.")}
           else {
-            AureliaCookie.set("login",JSON.stringify(this.loginData),{expiry:1,path:'',domain:'',secure:false})
+            AureliaCookie.set("login",JSON.stringify(this.loginData),{expiry:24,path:'',domain:'',secure:false})
           }
       })
       .catch((e)=>console.log(e));
   }
-
 
 
   newCard(ctx,asProperty=false){
@@ -884,6 +883,8 @@ where {
       this.activeCard.title = cleanTitle;
     }
   }
+
+
   getTerms(property){
     //console.log(property);
     let path = `${this.server}/lib/terms.sjs?predicate=${property}`;
@@ -1206,6 +1207,12 @@ filterComplianceTest(){
   this.insertTermObj.image = searchItem.imageURL;
  }
 
+ insertCodeBlock(){
+     let editor = document.querySelector('.bodyEditor');
+     editor.focus();
+     document.execCommand('insertHTML',false,'<pre class="codeBlock"># Insert Code Here</pre>');
+ }
+
   hasContent(context,property){
     //console.log(context,property);
     return (property === 'link')?true:!this.g[context][property][0].value.match(/\:_$/)
@@ -1231,16 +1238,35 @@ filterComplianceTest(){
 
   setImage(event){
 //    console.log(event);
+    //console.log(event.target.value)
     let file = event.srcElement.files[0];
     let reader = new FileReader();
-    let target = this.activeCard
+    let target = this.activeCard;
+    let me = this;
     reader.addEventListener("load", function () {
       target.image = reader.result;
+      me.createImageFile();
   }, false);
     reader.readAsDataURL(file);
     //this.activeCard.image = window.URL.createObjectURL(file);
   }
 
+  createImageFile(id=this.activeCard.curie){
+    let url = this.activeCard.image;
+    if (url.startsWith('data:image')){
+       let type=url.replace(/^data:image\/(\w+)\;.*/,'$1');
+       let data = url.split(';base64,')[1];
+       let options = {"method":"POST",body:JSON.stringify({imageData:data,imageType:type,id:id},null,4)}
+       let target = this.activeCard;
+       window.fetch(`${this.server}/lib/uploadImage.sjs`,options)
+       .then((resp)=>resp.json())
+       .then((json)=>{
+          let path = `${this.server}/lib/getImage.sjs?path=${json.filepath}`;
+          target.image = path;
+        })
+       .catch((e)=>console.log(e))
+    }
+  }
   loadBlocks(){
     this.blocks=[
 {

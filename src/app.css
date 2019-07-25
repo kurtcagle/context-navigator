@@ -1,18 +1,40 @@
 :root {
+  background-color:var(--contextBorderDarkestColor);
+}
+
+:root .red {
   --contextBorderColor: #E61031;
   --contextBorderHiliteColor: #E06440;
   --contextBorderDarkColor: #A02200;
   --contextBorderDarkerColor: #401100;
+  --contextBorderDarkestColor: #200000;
   --contextLinkColor: #802210;
   --visibleBorder:dotted 1px black;
   --invisibleBorder:solid 1px transparent;
   --boundary: var(--invisibleBorder);
   --mainWidth:720px;
-  --verticalGradient: linear-gradient(to bottom, var(--contextBorderDarkColor) 0%, var(--contextBorderDarkerColor) 100%);
-  background-color:var(--contextBorderDarkerColor) ;
+  --verticalGradient1: linear-gradient(to bottom, var(--contextBorderDarkColor) 0%, var(--contextBorderDarkerColor) 100%);
+  --verticalGradient2: linear-gradient(to bottom, var(--contextBorderDarkerColor) 0%, var(--contextBorderDarkestColor) 100%);
+  background-color:var(--contextBorderDarkestColor);
 }
 
-body {
+:root .blue {
+  --contextBorderColor: #3110E6;
+  --contextBorderHiliteColor: #4064E0;
+  --contextBorderDarkColor: #0022A0;
+  --contextBorderDarkerColor: #0011A0;
+  --contextBorderDarkestColor: #000020;
+  --contextLinkColor: #102280;
+  --visibleBorder:dotted 1px black;
+  --invisibleBorder:solid 1px transparent;
+  --boundary: var(--invisibleBorder);
+  --mainWidth:720px;
+  --verticalGradient1: linear-gradient(to bottom, var(--contextBorderDarkColor) 0%, var(--contextBorderDarkerColor) 100%);
+  --verticalGradient2: linear-gradient(to bottom, var(--contextBorderDarkerColor) 0%, var(--contextBorderDarkestColor) 100%);
+}
+
+
+body  {
 	margin:0px;
 	font-family:Arial;
 
@@ -35,6 +57,15 @@ body {
 .container {
 	display:flex;
 	flex-direction:column;
+}
+
+.outer {
+	position:absolute;
+	left:0;
+	top:0;
+	background-color:var(--contextBorderDarkestColor);	
+	width:100%;
+	height:100%;
 }
 
 .list {
@@ -103,7 +134,7 @@ body {
 	justify-content:flex-start;
 	width:400px;
 /*	border:solid 1px red;*/
-	background:var(--verticalGradient);
+	background:var(--verticalGradient1);
 	margin:0;
 	padding:10px;
 	color:white;
@@ -118,7 +149,7 @@ body {
 	display:block;
 	width:400px;
 /*	border:solid 1px blue;*/
-	background:var(--verticalGradient);
+	background:var(--verticalGradient1);
 	margin:0;
 }
 
@@ -154,8 +185,8 @@ body {
 .card h1 {font-size:18pt;}
 
 .cardImage {
-	max-width:400px;
-	max-height:400px;
+	max-width:95%;
+	max-height:95%;
 	margin:10px;
 }
 .namespace {
@@ -226,6 +257,7 @@ body {
 }
 
 .header {
+	position:fixed;
 	grid-area:header;
 	display:flex;
 	flex-direction:row;
@@ -234,6 +266,8 @@ body {
 	padding:10px;
 	justify-content:space-between;
 	background-color:white;
+	width:99%;
+	z-index:1;
 }
 .headerBlock {
     display:flex;
@@ -432,7 +466,7 @@ table td.inlineLabel {
 	width:420px;
 }
 .longInput {
-	width:420px;
+	width:90%;
 }
 
 .modal { 
@@ -459,11 +493,11 @@ table td.inlineLabel {
  .modal-content {
  	display:block;
  	background-color:white;
- 	border:groove 3px maroon;
- 	width:800px;
+ 	border:groove 3px var(--contextBorderDarkerColor);
+ 	width:780px;
  } 
  .modal-header {
- 	background-color:maroon;
+ 	background-color: var(--contextBorderDarkerColor);
  	padding:5px;
  	font-weight:bold;
  	color:white;
@@ -483,6 +517,15 @@ table td.inlineLabel {
  	/*overflow-y:auto;*/
 
  }
+
+ .bodyEditor img {
+	max-width:100%;
+ }
+
+
+.bodyDisplay img {
+	max-width:100%;
+}
 
 .newModalBE {
 	height:200px;
@@ -532,6 +575,7 @@ table td.inlineLabel {
 	justify-content: space-between;
 	width:100%;
 	background-color:white;
+	margin-top:57px;
 }
 .centerPane {
 	display:block;
@@ -604,7 +648,7 @@ table td.inlineLabel {
 	font-size:10pt
 }
 .footer {
-	background:var(--contextBorderDarkerColor);
+	background:var(--verticalGradient2);
 	width:100%;
 	min-height:100px;
 	height:100%;
@@ -637,5 +681,3 @@ table td.inlineLabel {
 	padding:15px;
 
 }
-
-

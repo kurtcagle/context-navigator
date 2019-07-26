@@ -14,9 +14,10 @@ export class App {
     this.searchData = {};
     this.history = [];
     this.mode=this.params.mode||"card";
-    this.sortMode = "dateDesc";
+    this.sortMode = "createdDateDesc";
     this.sortModeStates = [
-      {label:"Date Descending",value:"dateDesc"},
+      {label:"Created Date Descending",value:"createdDateDesc"},
+      {label:"Modified Date Descending",value:"modifiedDateDesc"},
       {label:"Alphanumeric",value:"alpha"}];
     this.namespace = '';
     this.activeLinkPredicate = null;
@@ -317,7 +318,11 @@ inputSearch(){
             }
             linkNodes.sort((a,b)=>sortValue(a) <= sortValue(b)?-1:1)
         }
-        if (this.sortMode === "dateDesc"){
+        if (this.sortMode === "createdDateDesc"){
+            sortValue = (a)=> a.hasOwnProperty('term:hasCreatedDate')?`${a["term:hasCreatedDate"][0].value}`:"";
+            linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
+        }
+        if (this.sortMode === "modifiedDateDesc"){
             sortValue = (a)=> a.hasOwnProperty('term:hasLastModifiedDate')?`${a["term:hasLastModifiedDate"][0].value}`:"";
             linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
 
@@ -1278,11 +1283,15 @@ filterComplianceTest(){
       header:`<h2>Author(s)</h2>`,
       footer:``,
       css:`.authorEntry {padding-bottom:10pt;}
-      .authorImage {max-width:160px}
+      .authorImage {
+        width:90%;
+        height:auto;
+        margin-right:10px;
+        margin-bottom:10px;}
       .jobTitle {font-size:10pt;font-style:italic;}
       `,
       template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}')" class="authorEntry">
-        <img src="${graph[context]['term:hasPrimaryImageURL'][0].value}"/>
+        <img src="${graph[context]['term:hasPrimaryImageURL'][0].value}" class="authorImage"/>
         <div class="link">${graph[context]['term:prefLabel'][0].value}</div>
         <div class="jobTitle">${graph[context]['author:hasTitle'][0].value}</div>
         </div>`
@@ -1299,18 +1308,24 @@ filterComplianceTest(){
         padding-bottom:10pt;
         display:flex;
         flex-direction:row;
-        justify-content:flex-start;
         padding-top:20px;
       }
-      .authorImage {
-        max-width:160px;
+      .authorImage2 {
+        width:90%;
+        height:auto;
+        border:inset 10px lightGray;
+        border-radius:20px;
+
+      }
+      .imageContainer2 {
         display:block;
-        margin-right:10px;
-        margin-bottom:10px;}
-      .authorDescription {font-size:10pt;font-style:italic;display:block}
+        width:30%;
+        padding:15px;
+      }
+      .authorDescription {font-size:10pt;font-style:italic;display:block;width:70%}
       `,
       template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}')" class="aboutAuthor_1">
-        <img src="${graph[context]['term:hasPrimaryImageURL'][0].value}" class="authorImage"/>
+        <div class="imageContainer2"><img src="${graph[context]['term:hasPrimaryImageURL'][0].value}" class="authorImage2"/></div>
         <div class="authorDescription">
         ${graph[context]['term:hasDescription'][0].value}</div>
         </div>`

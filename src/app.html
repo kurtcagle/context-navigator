@@ -9,7 +9,7 @@
   	  <div class="headerBlock">
 	      <img src="https://thumbor.forbes.com/thumbor/960x0/https%3A%2F%2Fblogs-images.forbes.com%2Fcognitiveworld%2Ffiles%2F2019%2F01%2FYouAreHere-1.jpg" class="headerLogo link" click.trigger="fetchContext('page:_Home')"/>
 	  	  <div class="button" click.trigger="goBack()" if.bind="history.length>1">Back</div>
-	  	  <div class="bannerText">Semantic Navigator</div>
+	  	  <div class="bannerText">The Context Engine</div>
   	 </div>
   	 <div class="headerBlock">
 	  	  <input type="search" value.bind="q" input.delegate="fetchSearch()" placeholder="Search"/>
@@ -692,7 +692,7 @@
   	<div class="centerPaneAddons"><!-- Empty --></div>
 </div>
   <div class="rightPane">	
-	<div class="sideProperties">
+	<div class="sideProperties"  if.bind="userRole.has('accountRole:_Create')">
 		<div class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</div>
 		<div class="property" repeat.for="property of keys(g[context], ['rdf:type','term:prefLabel','term:hasPrimaryImageURL','term:hasDescription','vehicle:hasOptions','term:inGlossary','vehicle:hasVehicleComments', 
 		'term:hasIdentifier','term:hasSearchable'])">

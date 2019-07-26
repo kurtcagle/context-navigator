@@ -12,7 +12,7 @@
   --visibleBorder:dotted 1px black;
   --invisibleBorder:solid 1px transparent;
   --boundary: var(--invisibleBorder);
-  --mainWidth:720px;
+  --mainWidth:100%;
   --verticalGradient1: linear-gradient(to bottom, var(--contextBorderDarkColor) 0%, var(--contextBorderDarkerColor) 100%);
   --verticalGradient2: linear-gradient(to bottom, var(--contextBorderDarkerColor) 0%, var(--contextBorderDarkestColor) 100%);
   background-color:var(--contextBorderDarkestColor);
@@ -28,7 +28,7 @@
   --visibleBorder:dotted 1px black;
   --invisibleBorder:solid 1px transparent;
   --boundary: var(--invisibleBorder);
-  --mainWidth:720px;
+  --mainWidth:100%;
   --verticalGradient1: linear-gradient(to bottom, var(--contextBorderDarkColor) 0%, var(--contextBorderDarkerColor) 100%);
   --verticalGradient2: linear-gradient(to bottom, var(--contextBorderDarkerColor) 0%, var(--contextBorderDarkestColor) 100%);
 }
@@ -117,7 +117,7 @@ body  {
 	display:block;
 }
 .card {
-	width:720px;
+	width:100%;
 	border:solid 2px var(--contextBorderColor);
 	border-radius:12px;
 	margin:10px;
@@ -132,12 +132,25 @@ body  {
 	flex-direction:column;
 	align-items:flex-start;
 	justify-content:flex-start;
-	width:400px;
+	width:20%;
 /*	border:solid 1px red;*/
 	background:var(--verticalGradient1);
 	margin:0;
 	padding:10px;
 	color:white;
+}
+
+.centerPane {
+	display:flex;
+	flex-direction:column;
+	min-height: 1fr;	
+	background-color:white;
+	padding-top:5px;
+	padding-bottom:10px;
+	justify-content:center;
+	align-items:flex-start;
+	width:60%;
+	min-width:1024px;
 }
 
 .leftPane .link {
@@ -147,7 +160,7 @@ body  {
 
 .rightPane {
 	display:block;
-	width:400px;
+	width:20%;
 /*	border:solid 1px blue;*/
 	background:var(--verticalGradient1);
 	margin:0;
@@ -268,6 +281,7 @@ body  {
 	background-color:white;
 	width:99%;
 	z-index:1;
+	box-shadow:4px 4px 4px rgba(0,0,0,0.7);
 }
 .headerBlock {
     display:flex;
@@ -355,14 +369,13 @@ body  {
 
 }
 .graph {
-	width:var(--mainWidth);
-	height:100%;
+	width:1024px;
+	height:1024px;
 /*	max-height:600px;*/
-	min-height:600px;
+	min-height:1fr;
 	resize: both;
-    overflow: hidden;
-    display:inline-block;
-    resize:both;
+    overflow:hidden;
+    display:block;
 }
 .modeButtons {
 	display:flex;
@@ -370,7 +383,7 @@ body  {
 }
 .modeFrame {
 	display:block;
-	width:800px;
+	width:1fr;
 }
 .pager {
 	padding-bottom:5px ;
@@ -577,16 +590,10 @@ table td.inlineLabel {
 	background-color:white;
 	margin-top:57px;
 }
-.centerPane {
-	display:block;
-	min-height: 600px;	
-	background-color:white;
-	padding-top:5px;
-	padding-bottom:10px;
-}
+
 .display {
 	display:block;
-	width:800px;
+	width:90%;
 }
 .emailLink {text-decoration:none;}
 .hours {font-size:10pt;}
@@ -669,7 +676,7 @@ table td.inlineLabel {
 	max-width:500px;
 }
 .centerPaneAddons {
-	width:780px;
+	width:1fr;
 	margin:10px;
 	font-family:Arial;
 	//grid-area:card;
@@ -679,5 +686,6 @@ table td.inlineLabel {
 	border:solid 2px var(--contextBorderColor);
 	border-radius:12px;
 	padding:15px;
+	margin:10px;
 
 }

@@ -499,6 +499,10 @@ table td.inlineLabel {
   transition: background 250ms ease-in-out;
   padding:10pt;
 }
+.modal .modalBody  {
+  max-height:600px;
+  overflow-y:auto;
+}
 .visible {
     transform:scale(1,1);
     background:rgba(0,0,0,0.7);

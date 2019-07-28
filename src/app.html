@@ -456,7 +456,7 @@
     <div slot="header">
       <b>New ${g[context]['term:prefLabel'][0].value}</b>
     </div>
-    <div>
+    <div class="modalBody">
   	<div class="dlg-label">Title of Card</div>
     <div class="cardTitleEdit"><input value.bind="activeCard.title" input.delegate="generateEntityId(context)" class="longInput"/></div>
 	<img class="cardImage" src="${activeCard.image}"/>
@@ -542,6 +542,7 @@
 				<option value="">None Selected</option>
 				<option value.bind="value.curie" repeat.for="value of activePropertyValues">${value.label}</option>
 			</select>
+			<div class="button" click.trigger="launchPage(activeProperty.range,'list')">+</div>
 		</div>
 		</div>
 		<div class="property" if.bind="activeProperty.nodeKind === 'nodeKind:_Literal' && activeProperty.datatype ==='xsd:string'" >

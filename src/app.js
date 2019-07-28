@@ -399,8 +399,8 @@ inputSearch(){
   		window.location.href = `${this.client}/?context=${this.context}${refresh?`&cache=refresh&mode=${this.mode}`:''}`;
   	}
 
-  	launchPage(){
-  		window.open(`${this.client}/?context=${this.context}&cache=refresh&mode=${this.mode}`)
+  	launchPage(context=this.context,mode=this.mode){
+  		window.open(`${this.client}/?context=${context}&cache=refresh&mode=${mode}`)
   	}
 
   	goBack(){
@@ -500,7 +500,8 @@ inputSearch(){
 //       this.g[this.context]['term:hasDescription']=[{datatype:"termType:_HTML",value:this.activeCard.body,type:"literal"}];
 //       this.g[this.context]['term:hasPrimaryImageURL'] = [{datatype:"termType:_Image",value:this.activeCard.image,type:"literal"}];
        //this.activeCard.curie = this.context;
-       this.activeCard.context = this.activeCard.curie
+       this.activeCard.context = this.activeCard.curie;
+       let internalTerms = this.extractInternalTerms(this.activeCard.body);
        let path = `${this.server}/lib/saveCard.sjs`;  
        console.log(path);
 /*       let options = {
@@ -533,6 +534,13 @@ inputSearch(){
     })
     return input
   }
+  extractInternalTerms(body){
+    let parser = new DOMParser();
+    let parsedHtml = parser.parseFromString(body, 'text/html');
+    let termCuries = Array.from(parsedHtml.querySelectorAll("a")).filter((node)=>node.getAttribute('property')==='term:hasInternalTerm').map((node)=>node.getAttribute('resource'));
+    return termCuries
+  }
+  
   boxFilter(input){
     input = input.replace(/\[(.*?)\|(.*?)\]/g,`<a href="?context=$1">$2</a>`);
     input = input.replace(/\*/g,`<li>`); // Replaces *s with list items. Doesn't handle inline * case well
@@ -550,6 +558,7 @@ inputSearch(){
     this.cardEdit=true;
     this.activeCard.title = this.g[this.context]['term:prefLabel'][0].value;
     this.activeCard.body = this.g[this.context]['term:hasDescription'][0].value;
+
     this.activeCard.image = this.g[this.context]['term:hasPrimaryImageURL'][0].value;
     this.activeCard.context = this.context;
     this.activeCard.curie = this.context;
@@ -579,6 +588,10 @@ inputSearch(){
        if (this.activeCard.sourceCurie != ''){
          this.g[this.context]['term:hasSourceTerm'] = [{value:this.activeCard.sourceCurie,type:"uri"}];
        }
+    let internalTerms = this.extractInternalTerms(this.activeCard.body);  
+    let termObjs=internalTerms.map((term)=>{return {value:term,type:"uri"}}); 
+    console.log(termObjs);
+    this.g[this.context]['term:hasCrossReference']=termObjs
     let buffer = [];
     let update = Object.keys(this.g[context]).forEach((predicate)=>{
       this.g[context][predicate].forEach((object)=>{
@@ -720,7 +733,8 @@ where {
     this.activeCard.title = "";
     this.activeCard.body = "";
 //    this.activeCard.domain = context;
-    this.activeCard.image = Array.isArray(this.g[context]['term:hasPrimaryImageURL'])?this.g[context]['term:hasPrimaryImageURL'][0].value:"";
+    this.activeCard.image = this.g.hasOwnProperty(context)?Array.isArray(this.g[context]['term:hasPrimaryImageURL'])?this.g[context]['term:hasPrimaryImageURL'][0].value:"":"";
+    this.activeCard.image = this.activeCardImage||"";
     if (context === 'class:_Property'){
       this.activeCard.nodeKind = '';
       this.activeCard.range = '';
@@ -1182,11 +1196,12 @@ filterComplianceTest(){
   console.log(this.insertTermObj.asImage);
   let link = (this.insertTermObj.asImage==="image")?`
      <div class="insertedImageContainer">
-        <a href="/?context=${this.insertTermObj.value}" class="link">
+        <a href="/?context=${this.insertTermObj.value}" class="link"  resource="${this.insertTermObj.value}" property="term:hasInternalTerm">
           <img src="${this.insertTermObj.image}" class="insertedImage"/>
           <div class="imageCaption">${this.insertTermObj.temp}</div>
         </a>
-      </div>`:`<a href="/?context=${this.insertTermObj.value}" class="link">${label}</a>`;
+      </div>`:`<a href="/?context=${this.insertTermObj.value}" class="link" resource="${this.insertTermObj.value}" 
+      property="term:hasInternalTerm">${label}</a>`;
   let editor = document.querySelector('.bodyEditor');
   let html = editor.innerHTML;
   editor.innerHTML = html.replace("%^%",link)

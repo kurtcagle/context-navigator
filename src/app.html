@@ -209,7 +209,7 @@
 	  			</div>
 	  		</div>
 	  	</div>
-	  	<div repeat.for="link of visibleLinks" class="linkContainer">
+	  	<div repeat.for="link of visibleLinks" class="linkContainer" if.bind="(g[link]['term:hasPublicationStatus'][0].value === 'publicationStatus:_Published') || userRole.has('accountRole:_Create')">
 	  		<div class="link iconContainer"><div class="iconSubcontainer"><img src="${g[link]['term:hasPrimaryImageURL'][0].value}" if.bind="g[link].hasOwnProperty('term:hasPrimaryImageURL')" click.trigger="fetchContext(link)" class="linkImage"/></div><div  class="link colorIcon "
 	  			if.bind="g[link].hasOwnProperty('color:hasColorHexValue')"
 	  			 click.trigger="fetchContext(link)"

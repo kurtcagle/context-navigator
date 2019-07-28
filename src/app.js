@@ -1040,12 +1040,21 @@ filterComplianceTest(){
   }
 
   processAddProperty(){
-    console.log(this.activeProperty);
+    console.log('*',this.activeProperty);
+    let set = new Set([]);
     if (this.activeProperty.nodeKind==='nodeKind:_IRI'){
       if (!this.g[this.context].hasOwnProperty(this.activeProperty.predicate)){
         this.g[this.context][this.activeProperty.predicate] = [];
         }
-      this.g[this.context][this.activeProperty.predicate].push({'type':'uri',value:this.activeProperty.value});
+      if ((new Set(['cardinality:_ZeroOrMore','cardinality:_OneOrMore']).has(this.activeProperty.cardinality))){
+        if (!set.has(this.activeProperty.value)){
+          this.g[this.context][this.activeProperty.predicate].push({'type':'uri',value:this.activeProperty.value});
+          set.add(this.activeProperty.value);
+          }
+        }
+      else {
+          this.g[this.context][this.activeProperty.predicate] = [{'type':'uri',value:this.activeProperty.value}];        
+      }
       this.saveCardProperties();
       }
     if (this.activeProperty.nodeKind==='nodeKind:_Literal'){
@@ -1368,7 +1377,20 @@ filterComplianceTest(){
       footer:``,
       css:``,
       template:(context,graph,index,count) =>`<span onclick="window.app.fetchContext('${context}')" class="link">${graph[context]['term:prefLabel'][0].value}</span>`
-    } 
+    },
+    {
+      type:"self",
+      predicate:"term:hasCrossReference",
+      selector:'crossRef',
+      separator:', ',
+      html:``,
+      container:'leftPane',
+      header:`<h2>Related Topics</h2><ul>`,
+      footer:`</ul>`,
+      css:``,
+      template:(context,graph,index,count) =>`<li><span onclick="window.app.fetchContext('${context}')" class="topic link">${graph[context]['term:prefLabel'][0].value}</span></li>`
+    }
+
     ]
 
   }

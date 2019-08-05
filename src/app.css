@@ -19,7 +19,7 @@
 }
 
 :root .blue {
-  --contextBorderColor: #3110E6;
+  --contextBorderColor: #21A0F6;
   --contextBorderHiliteColor: #4064E0;
   --contextBorderDarkColor: #0022A0;
   --contextBorderDarkerColor: #0011A0;
@@ -29,7 +29,7 @@
   --invisibleBorder:solid 1px transparent;
   --boundary: var(--invisibleBorder);
   --mainWidth:100%;
-  --verticalGradient1: linear-gradient(to bottom, var(--contextBorderDarkColor) 0%, var(--contextBorderDarkerColor) 100%);
+  --verticalGradient1: linear-gradient(to bottom, var(--contextBorderColor) 0%, var(--contextBorderDarkerColor) 100%);
   --verticalGradient2: linear-gradient(to bottom, var(--contextBorderDarkerColor) 0%, var(--contextBorderDarkestColor) 100%);
 }
 
@@ -691,5 +691,10 @@ table td.inlineLabel {
 	border-radius:12px;
 	padding:15px;
 	margin:10px;
+
+}
+.imageHeader {
+	display:flex;
+	flex-direction:row;
 
 }

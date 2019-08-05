@@ -8,7 +8,6 @@
   <div class="header">
   	  <div class="headerBlock">
 	      <img src="https://thumbor.forbes.com/thumbor/960x0/https%3A%2F%2Fblogs-images.forbes.com%2Fcognitiveworld%2Ffiles%2F2019%2F01%2FYouAreHere-1.jpg" class="headerLogo link" click.trigger="fetchContext('page:_Home')"/>
-	  	  <div class="button" click.trigger="goBack()" if.bind="history.length>1">Back</div>
 	  	  <div class="bannerText">The Context Engine</div>
   	 </div>
   	 <div class="headerBlock">
@@ -22,15 +21,16 @@
 	   	  			<option repeat.for="action of instanceList['class:_Class']['rdf:type']" value.bind="action.curie">${action.label}</option>
 	   	  		</select>
 	   	  </div>
-   	  </div>
+   	  </div>	
    	  <div class="headerBlock">
    	  	<div class="button" click.trigger="login()" if.bind="!loginData.status">Log in</div>
    	  	<div class="button" click.trigger="logout()" if.bind="loginData.status">Log out</div>
-   	  	<div class="button" click.trigger="launchService()">JSON</div>
-		<div class="button" click.trigger="launchSeo()">SEO</div>
-		<div class="button" click.trigger="launchPage()">New Tab</div>
-		<div class="button" click.trigger="pinPage(true)">Refresh</div>
-		<div class="button" click.trigger="cache='cached'">Cache</div>
+	  	<div class="button" click.trigger="goBack()" if.bind="history.length>1">Back</div>
+   	  	<div class="button" click.trigger="launchService()" if.bind="loginData.status">JSON</div>
+		<div class="button" click.trigger="launchSeo()" if.bind="loginData.status">SEO</div>
+		<div class="button" click.trigger="launchPage()" if.bind="loginData.status">New Tab</div>
+		<div class="button" click.trigger="pinPage(true)" if.bind="loginData.status">Refresh</div>
+		<div class="button" click.trigger="cache='cached'" if.bind="loginData.status">Cache</div>
 
    	  </div>  	  
   </div>
@@ -66,7 +66,7 @@
 		</div>
 		<div class="property" repeat.for="property of keys(g[context], ['rdf:type','term:prefLabel','term:hasPrimaryImageURL','term:hasDescription','vehicle:hasOptions','term:inGlossary','vehicle:hasVehicleComments', 
 		'term:hasIdentifier','term:hasSearchable'])">
-		  	<div class="label" title="${property}" click.trigger="fetchContext(property)"
+		  	<div class="label" title="${property}"
 		  	>${titleCase((g[property]['term:prefLabel'])?g[property]['term:prefLabel'][0].value:property)}:&nbsp;</div>
 		  	<div class="valueBlock">
 			  	<div class="value" repeat.for="item of wrapArray(g[context][property])">
@@ -218,7 +218,7 @@
 		  		<span click.trigger="fetchContext(link)" class="link"><span if.bind="g[link]['rdf:type'][0].value ==='class:_Property'">(${g[g[link]['rdfs:domain'][0].value]['term:prefLabel'][0].value}) </span>${g[link]['term:prefLabel'][0].value}.&nbsp;<span if.bind="g[link]['rdf:type'][0].value ==='class:_Property'">(<span>${g[g[link]['rdfs:range'][0].value]['term:prefLabel'][0].value}<span class="datatypeLink">${g[g[link]['property:hasDatatype'][0].value]['term:prefLabel'][0].value}</span></span>)</span></span>
 		  		<!--<span class="link" click.trigger="fetchContext(g[link]['rdf:type'][0].value)" >[${g[g[link]['rdf:type'][0].value]['term:prefLabel'][0].value}]</span>-->
 		  		[<span class="link" repeat.for="sType of g[link]['rdf:type']"  click.trigger="fetchContext(sType.value,'list')">
-		  			${g[sType.value]['term:prefLabel'][0].value}<span if.bind="!$last">, </span></span>]
+		  			${g[sType.value]['term:prefLabel'][0].value}<span if.bind="!$last">, </span></span>] <div class="button" click.trigger="launchPage(link,'card')">Card</div><div class="button" click.trigger="launchPage(link,'properties')">Properties</div>
 		  		<div class="linkDate">${displayLiteral(g[link]['term:hasLastModifiedDate'][0])}</div>
 		  		<div class="linkDescription" innerHTML="${summaryFilter(g[link]['term:hasDescription'][0].value)}..."></div>
 	  		</div>
@@ -228,7 +228,12 @@
  	  
 	  <div class="images" if.bind="mode==='images'">
 	  	<div class="type link" click.trigger="fetchContext(g[context]['rdf:type'][0].value,'list')">${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>
-		<div class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</div>	  	
+	  	<div class="imageHeader">
+		  	<div class="imageContainer">
+		  		<img src.bind="g[context]['term:hasPrimaryImageURL'][0].value" class="thumbImage"/>
+		  	</div>
+			<h1 class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</h1>
+		</div>	  	
 	  <div class="tabs">
 	     <div class="tab ${(predicate.curie === activeLinkPredicate)?'active':''}" repeat.for="predicate of predicates" click.trigger="activateTab(predicate.curie)"
 	     if.bind="!(['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange'].includes(predicate.curie))"
@@ -279,6 +284,8 @@
 	</div>
 	<div class="description  expanded">
 		<div class="bodyDisplay" repeat.for="descrKey of ['term:hasDescription']" innerHTML="${filterBody(g[context][descrKey][0].value)}"></div>
+		<div class="button" click.trigger="launchURL(g[context]['term:hasExternalURL'][0].value)"
+		if.bind="g[context]['term:hasExternalURL'][0].value != ''">More</div>
 	</div>
 	<hr/>
   </div>
@@ -298,6 +305,10 @@
 	<div><span class="label">Image URL: </span><input value.two-way="activeCard.image" class="primaryImageEditField longInput" input.delegate="createImageFile(activeCard.curie)"/>
 		<input type="file" change.trigger="setImage($event)"/>
 	</div>
+	<div class="property">
+		<div class="dlg-label">External URL:</div>
+		<div class="dlg-value"><input value.two-way="activeCard.externalURL" class="longInput" title="Clear to remove link"/></div>
+	</div>		
 	<div class="editorButtons">
 		<button><img class="intLink" title="Undo" click.trigger="formatDoc('undo')" src="data:image/gif;base64,R0lGODlhFgAWAOMKADljwliE33mOrpGjuYKl8aezxqPD+7/I19DV3NHa7P///////////////////////yH5BAEKAA8ALAAAAAAWABYAAARR8MlJq7046807TkaYeJJBnES4EeUJvIGapWYAC0CsocQ7SDlWJkAkCA6ToMYWIARGQF3mRQVIEjkkSVLIbSfEwhdRIH4fh/DZMICe3/C4nBQBADs=" /></button>
 		<button><img class="intLink" title="Redo" click.trigger="formatDoc('redo')" src="data:image/gif;base64,R0lGODlhFgAWAMIHAB1ChDljwl9vj1iE34Kl8aPD+7/I1////yH5BAEKAAcALAAAAAAWABYAAANKeLrc/jDKSesyphi7SiEgsVXZEATDICqBVJjpqWZt9NaEDNbQK1wCQsxlYnxMAImhyDoFAElJasRRvAZVRqqQXUy7Cgx4TC6bswkAOw==" /></button>
@@ -502,6 +513,10 @@
 		</div>
 	</div>
 	<div class="property">
+		<div class="dlg-label">External URL:</div>
+		<div class="dlg-value"><input value.two-way="activeCard.externalURL" class="longInput"/></div>
+	</div>		
+	<div class="property">
 		<div class="dlg-label">Curie</div>
 		<div class="curie" contenteditable="true"  innerhtml.two-way="activeCard.curie" placeholder="Condensed URI or Curie"></div>
 	</div>
@@ -574,7 +589,10 @@
 			<div class="dlg-label">Value:</div>
 			<div class="dlg-value"><input value.bind="activeProperty.value" type="color"/></div>
 		</div>
-
+		<div class="value" if.bind="activeProperty.nodeKind==='nodeKind:_Literal' && activeProperty.datatype === 'xsd:anyURI'" title="${activeProperty.value}">
+			<div class="dlg-label">URL:</div>
+  			<div><input type="text" value.bind = "activeProperty.value" class="longInput"/></div>
+  		</div>
     </div>
 	<div slot="footer">
 		<div class="button" click.trigger="addPropertyModal.close()">Save</div>
@@ -697,8 +715,7 @@
 		<div class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</div>
 		<div class="property" repeat.for="property of keys(g[context], ['rdf:type','term:prefLabel','term:hasPrimaryImageURL','term:hasDescription','vehicle:hasOptions','term:inGlossary','vehicle:hasVehicleComments', 
 		'term:hasIdentifier','term:hasSearchable'])">
-		  	<div class="label" title="${property}" click.trigger="fetchContext(property)"
-             
+		  	<div class="label" title="${property}"             
 		  	>${titleCase((g[property]['term:prefLabel'])?g[property]['term:prefLabel'][0].value:property)}:&nbsp;</div>
 		  	<div class="valueBlock">
 			  	<div class="value" repeat.for="item of wrapArray(g[context][property])">

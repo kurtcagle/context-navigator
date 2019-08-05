@@ -5,15 +5,16 @@ export class App {
   constructor() {
     //this.userRole = new Set([]);
     window.app = this;
-    this.theme = "red";
+    this.theme = "blue";
   	this.params = this.getQueryParams()||{};
-    this.context = this.params != null?this.params.context||"page:_Home":"page:_Home";
+    this.defaultPage = "magazine:_CognitiveWorld";
+    this.context = this.params != null?this.params.context||this.defaultPage:this.defaultPage;
     this.qRefine = this.params.qr||"";
     this.cache = this.params.cache||"cached";
     this.q  = this.params.q||"";
     this.searchData = {};
     this.history = [];
-    this.mode=this.params.mode||"card";
+    this.mode=this.params.mode||"images";
     this.sortMode = "createdDateDesc";
     this.sortModeStates = [
       {label:"Created Date Descending",value:"createdDateDesc"},
@@ -79,7 +80,7 @@ export class App {
     ];
     this.selectedAction="selectAction";
     this.defaultCard = {title:"New Card",body:"This is a new card.",image:"",curie:"foo:bar",prefix:"",ns:"",datatype:"",nodeKind:"",
-domain:"",range:"",cardinality:"",sourceCurie:""};
+domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
     this.defaultNamespace = "http://semantical.llc/ns/";
     this.activeCard = Object.assign(this.defaultCard,{});
     this.linkPropertyList = {};
@@ -403,6 +404,11 @@ inputSearch(){
   		window.open(`${this.client}/?context=${context}&cache=refresh&mode=${mode}`)
   	}
 
+    launchURL(url){
+      window.open(url);
+    }
+
+
   	goBack(){
   		if (this.history.length > 1){
   			//this.history.pop();
@@ -455,6 +461,7 @@ inputSearch(){
       else {
         this.mode=mode;
         this.hash=this.mode;
+        this.refreshBlocks();
         switch(mode){
           case "ingestion":this.loadIngestData();break;
           case "list":{
@@ -492,6 +499,8 @@ inputSearch(){
        this.activeCard.image = this.g[this.context]['term:hasPrimaryImageURL']!=null?this.g[this.context]['term:hasPrimaryImageURL'][0].value:"";
        this.activeCard.context = this.context;
        this.activeCard.curie = this.context;
+       console.log(this.g[this.context]['term:hasExternalURL']);
+       this.activeCard.externalURL = this.g[this.context]['term:hasExternalURL']!=null?this.g[this.context]['term:hasExternalURL'][0].value:'';
        this.cardEdit = true;
        this.editMode = editMode;
     }
@@ -560,6 +569,7 @@ inputSearch(){
     this.activeCard.body = this.g[this.context]['term:hasDescription'][0].value;
 
     this.activeCard.image = this.g[this.context]['term:hasPrimaryImageURL'][0].value;
+    this.activeCard.externalURL = this.g[this.context]['term:hasExternalURL'][0].value;
     this.activeCard.context = this.context;
     this.activeCard.curie = this.context;
     Object.keys(this.g[this.context]).forEach((predicate)=>{
@@ -588,6 +598,7 @@ inputSearch(){
        if (this.activeCard.sourceCurie != ''){
          this.g[this.context]['term:hasSourceTerm'] = [{value:this.activeCard.sourceCurie,type:"uri"}];
        }
+       this.g[this.context]['term:hasExternalURL']= [{datatype:"xsd:anyURL",value:this.activeCard.externalURL,type:"literal"}];
     let internalTerms = this.extractInternalTerms(this.activeCard.body);  
     let termObjs=internalTerms.map((term)=>{return {value:term,type:"uri"}}); 
     console.log(termObjs);
@@ -732,6 +743,7 @@ where {
     this.activeCard.type = context;
     this.activeCard.title = "";
     this.activeCard.body = "";
+    this.activeCard.externalURL = "";
 //    this.activeCard.domain = context;
     this.activeCard.image = this.g.hasOwnProperty(context)?Array.isArray(this.g[context]['term:hasPrimaryImageURL'])?this.g[context]['term:hasPrimaryImageURL'][0].value:"":"";
     this.activeCard.image = this.activeCardImage||"";
@@ -762,7 +774,8 @@ where {
       body:this.g[this.context].hasOwnProperty('term:hasDescription')?this.g[this.context]['term:hasDescription'][0].value:' ',
       image:this.g[this.context].hasOwnProperty('term:hasPrimaryImageURL')&&Array.isArray(this.g[this.context]['term:hasPrimaryImageURL'])?this.g[this.context]['term:hasPrimaryImageURL'][0].value:' ',
       curie:`${this.context}_Copy`,
-      sourceCurie:this.context
+      sourceCurie:this.context,
+      externalURL:this.g[this.context].hasOwnProperty('term:hasExternalURL')?this.g[this.context]['term:hasExternalURL'][0].value:' ',
     };
     this.duplicateModal.open();
   }
@@ -847,6 +860,7 @@ where {
         term:hasDescription """${this.activeCard.body}"""^^termType:_HTML;
         term:hasPrimaryImageURL "${this.activeCard.image}"^^termType:_Image;
         term:isDerivedFrom ${this.activeCard.sourceCurie};
+        term:hasExternalURL  "${this.activeCard.externalURL}"^^xsd:anyURI;
         .
     ${triples.join('\n')}
 }`;
@@ -1306,6 +1320,7 @@ filterComplianceTest(){
       container:'leftPane',
       header:`<h2>Author(s)</h2>`,
       footer:``,
+      mode:["card"],
       css:`.authorEntry {padding-bottom:10pt;}
       .authorImage {
         width:90%;
@@ -1328,6 +1343,7 @@ filterComplianceTest(){
       container:"centerPaneAddons",
       header:``,
       footer:``,
+      mode:["card"],
       css:`.aboutAuthor_1 {
         padding-bottom:10pt;
         display:flex;
@@ -1363,6 +1379,7 @@ filterComplianceTest(){
       container:'leftPane',
       header:`<h2>Topic(s)</h2>`,
       footer:``,
+      mode:["card"],
       css:``,
       template:(context,graph,index,count) =>`<span onclick="window.app.fetchContext('${context}')" class="topic link">${graph[context]['term:prefLabel'][0].value}</span>`
     } ,
@@ -1375,6 +1392,7 @@ filterComplianceTest(){
       container:'leftPane',
       header:``,
       footer:``,
+      mode:["card"],
       css:``,
       template:(context,graph,index,count) =>`<span onclick="window.app.fetchContext('${context}')" class="link">${graph[context]['term:prefLabel'][0].value}</span>`
     },
@@ -1387,8 +1405,22 @@ filterComplianceTest(){
       container:'leftPane',
       header:`<h2>Related Topics</h2><ul>`,
       footer:`</ul>`,
+      mode:["card"],
       css:``,
       template:(context,graph,index,count) =>`<li><span onclick="window.app.fetchContext('${context}')" class="topic link">${graph[context]['term:prefLabel'][0].value}</span></li>`
+    },
+    {
+      type:"self",
+      predicate:"article:hasOriginalURL",
+      selector:'originalLink',
+      separator:', ',
+      html:``,
+      container:'leftPane',
+      header:`<h2>Link(s) to Original</h2>`,
+      footer:``,
+      mode:["card"],
+      css:``,
+      template:(context,graph,index,count) =>`<div><a class="topic link" target="_blank">${window.app.displayLiteral({value:context,datatype:'xsd:anyURI'})}</a></div>`
     }
 
     ]
@@ -1402,6 +1434,8 @@ refreshBlocks(){
       }
     })
     this.blocks.forEach((block)=>{
+      console.log(block.mode)
+      if ((new Set(block.mode)).has(this.mode)){
       let container = document.querySelector(`.${block.container}`);
       if (container!=null){
       if (!container.querySelector(`.${block.selector}`))
@@ -1457,7 +1491,7 @@ refreshBlocks(){
         }
       }
     }
-    })
+    }})
   }
   isNullLink(context){
     return (context.match(/:_$/))

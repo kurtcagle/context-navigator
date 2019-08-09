@@ -19,7 +19,8 @@ export class App {
     this.sortModeStates = [
       {label:"Created Date Descending",value:"createdDateDesc"},
       {label:"Modified Date Descending",value:"modifiedDateDesc"},
-      {label:"Alphanumeric",value:"alpha"}];
+      {label:"Alphanumeric",value:"alpha"},
+      {label:"Internal Order",value:"ordinal"}];
     this.namespace = '';
     this.activeLinkPredicate = null;
     this.visibleLinks = [];
@@ -133,7 +134,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
         if (this.report.hasOwnProperty('report:hasPredicateNode')){
           let nodes = this.report['report:hasPredicateNode'].map((node)=>node.value);
           nodes.forEach((node)=>{
-            console.log(this.g[node]);
+            //console.log(this.g[node]);
             let predicate = {
                 curie:this.g[node]['report:hasPredicate'][0].value,
                 label:this.g[node]['report:hasPredicateLabel'][0].value,
@@ -325,6 +326,11 @@ inputSearch(){
         }
         if (this.sortMode === "modifiedDateDesc"){
             sortValue = (a)=> a.hasOwnProperty('term:hasLastModifiedDate')?`${a["term:hasLastModifiedDate"][0].value}`:"";
+            linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
+
+        }
+        if (this.sortMode === "ordinal"){
+            sortValue = (a)=> a.hasOwnProperty('term:hasOrder')?parseInt(a["term:hasOrder"][0].value):0;
             linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
 
         }
@@ -1400,7 +1406,7 @@ filterComplianceTest(){
       type:"self",
       predicate:"term:hasCrossReference",
       selector:'crossRef',
-      separator:', ',
+      separator:'',
       html:``,
       container:'leftPane',
       header:`<h2>Related Topics</h2><ul>`,

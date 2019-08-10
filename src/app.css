@@ -111,10 +111,13 @@ body  {
 
 }
 
-.images .thumbImage {
-	max-width:300px;
-	max-height:300px;
+.imageContainer .thumbImage {
+	max-width:200px;
+	max-height:200px;
 	display:block;
+}
+.summary {
+	margin-left:0.25in;
 }
 .card {
 	width:100%;
@@ -199,7 +202,7 @@ body  {
 
 .cardImage {
 	max-width:95%;
-	max-height:95%;
+	max-height:400px;
 	margin:10px;
 }
 .namespace {

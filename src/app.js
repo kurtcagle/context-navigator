@@ -15,12 +15,16 @@ export class App {
     this.searchData = {};
     this.history = [];
     this.mode=this.params.mode||"images";
+    this.showAdvancedListOptions = false;
     this.sortMode = "createdDateDesc";
     this.sortModeStates = [
       {label:"Created Date Descending",value:"createdDateDesc"},
       {label:"Modified Date Descending",value:"modifiedDateDesc"},
-      {label:"Alphanumeric",value:"alpha"},
-      {label:"Internal Order",value:"ordinal"}];
+      {label:"Alphanumeric Ascending",value:"alphaAsc"},
+      {label:"Alphanumeric Descending",value:"alphaDesc"},
+      {label:"Internal Order Ascending",value:"ordinalAsc"},
+      {label:"Internal Order Descending",value:"ordinalDesc"}
+];
     this.namespace = '';
     this.activeLinkPredicate = null;
     this.visibleLinks = [];
@@ -54,6 +58,7 @@ export class App {
     this.availableProperties = [];
     this.pageIndex =0;
     this.activeProperty = {};
+    this.selectedProperty = null;
     this.activePropertyValues = [];
     var hash = window.location.hash.substr(1);
     this.hash = this.mode||hash||"card";
@@ -174,7 +179,9 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
     
   }
 
-
+  filterListPredicates(predicates){
+    return predicates != null?predicates.filter((predicate)=>!(['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange'].includes(predicate.curie))):[];
+  }
 
   fetchSearch(){
   	if (this.q != ""){
@@ -268,7 +275,7 @@ inputSearch(){
 //        }
     }
     this.itemCount = qLinks.length;
-    if (this.reversed){qLinks.reverse()}
+    //if (this.reversed){qLinks.reverse()}
     this.totalPages = Math.ceil((this.itemCount - 1)/ this.pageSize);
     this.visibleLinks =qLinks.filter((link,index)=>index >= (this.pageSize * this.page) && (index <this.pageSize * (this.page + 1)))
     //this.visibleLinks = this.filterVisible();
@@ -313,12 +320,19 @@ inputSearch(){
   		//console.log(this.links);
   		//console.log("entering sort");
   		if (linkNodes.length>1){
-        if (this.sortMode === "alpha"){
+        if (this.sortMode === "alphaAsc"){
             sortValue = (a) => {
               let item = a["term:prefLabel"][0].value.trim();
               return item;
             }
             linkNodes.sort((a,b)=>sortValue(a) <= sortValue(b)?-1:1)
+        }
+        if (this.sortMode === "alphaDesc"){
+            sortValue = (a) => {
+              let item = a["term:prefLabel"][0].value.trim();
+              return item;
+            }
+            linkNodes.sort((a,b)=>sortValue(a) <= sortValue(b)?1:-1)
         }
         if (this.sortMode === "createdDateDesc"){
             sortValue = (a)=> a.hasOwnProperty('term:hasCreatedDate')?`${a["term:hasCreatedDate"][0].value}`:"";
@@ -329,7 +343,12 @@ inputSearch(){
             linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
 
         }
-        if (this.sortMode === "ordinal"){
+        if (this.sortMode === "ordinalAsc"){
+            sortValue = (a)=> a.hasOwnProperty('term:hasOrder')?parseInt(a["term:hasOrder"][0].value):0;
+            linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?-1:1)
+
+        }
+        if (this.sortMode === "ordinalDesc"){
             sortValue = (a)=> a.hasOwnProperty('term:hasOrder')?parseInt(a["term:hasOrder"][0].value):0;
             linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
 
@@ -604,7 +623,7 @@ inputSearch(){
        if (this.activeCard.sourceCurie != ''){
          this.g[this.context]['term:hasSourceTerm'] = [{value:this.activeCard.sourceCurie,type:"uri"}];
        }
-       this.g[this.context]['term:hasExternalURL']= [{datatype:"xsd:anyURL",value:this.activeCard.externalURL,type:"literal"}];
+       this.g[this.context]['term:hasExternalURL']= [{datatype:"xsd:anyURI",value:this.activeCard.externalURL,type:"literal"}];
     let internalTerms = this.extractInternalTerms(this.activeCard.body);  
     let termObjs=internalTerms.map((term)=>{return {value:term,type:"uri"}}); 
     console.log(termObjs);
@@ -1024,7 +1043,7 @@ filterComplianceTest(){
     return content;
   }
 
-  addProperty(){
+  addProperty(property){
     //alert("Placeholder for add property.")
     let contextType = this.g[this.context]['rdf:type'][0].value;
     let path = `${this.server}/lib/properties.sjs?type=${contextType}&cache=refresh`;
@@ -1033,14 +1052,20 @@ filterComplianceTest(){
     .then((response)=>response.json())
     .then((json)=>{
       this.availableProperties = json.results;
+      this.selectedProperty=property;
+      if (property != null){this.setPropertyListValue(property)};  
       this.addPropertyModal.open();
-
     })
     .catch((e)=>console.log(e))
   }
   activePropertySelected(event){
-    let predicate = event.target.value;
+      let predicate = event.target.value;
+      this.setPropertyListValue(predicate);
+  }
+  setPropertyListValue(predicate){
+    console.log(predicate);  
     this.activeProperty = this.availableProperties.find((property)=>property.predicate === predicate);
+    console.log(this.activeProperty)
     if (this.activeProperty.nodeKind === 'nodeKind:_IRI'){
     let path = `${this.server}/lib/getList.sjs?context=${this.activeProperty.range}&cache=refresh`;
     fetch(path)
@@ -1508,6 +1533,13 @@ refreshBlocks(){
       return validLink;
     }
     else {return false;}
+  }
+  summary(body){
+    if (body!= null){
+        let text = body.replace(/<.+?>/g,'');
+        return text.match(/\./)?`${text.split(/\./)[0]}.`:text;
+      }
+    else {return ""}
   }
 }
 

@@ -7,8 +7,8 @@
   <div class="container ${wait?'wait':''}">
   <div class="header">
   	  <div class="headerBlock">
-	      <img src="https://thumbor.forbes.com/thumbor/960x0/https%3A%2F%2Fblogs-images.forbes.com%2Fcognitiveworld%2Ffiles%2F2019%2F01%2FYouAreHere-1.jpg" class="headerLogo link" click.trigger="fetchContext('page:_Home')"/>
-	  	  <div class="bannerText">The Context Engine</div>
+	      <img src="${defaultImage}" class="headerLogo link" click.trigger="fetchContext(defaultPage,'images')"/>
+	  	  <div class="bannerText">${defaultLabel}</div>
   	 </div>
   	 <div class="headerBlock">
 	  	  <input type="search" value.bind="q" input.delegate="fetchSearch()" placeholder="Search"/>
@@ -65,7 +65,7 @@ Namespaces</div> <div class="button ${mode==='list2'?'selected':''}" click.trigg
 		<div class="buttons">
 			<div class="button" click.trigger="editCardProperties()" if.bind="userRole.has('accountRole:_Edit')">Edit</div>
 		</div>
-		<div class="property" repeat.for="property of keys(g[context], ['rdf:type','term:prefLabel','term:hasPrimaryImageURL','term:hasDescription','vehicle:hasOptions','term:inGlossary','term:hasExternalURL', 
+		<div class="property" repeat.for="property of keys(g[context], ['term:prefLabel','term:hasPrimaryImageURL','term:hasDescription','vehicle:hasOptions','term:inGlossary','term:hasExternalURL', 
 		'term:hasIdentifier','term:hasSearchable'])">
 		  	<div class="label" title="${property}"
 		  	>${titleCase((g[property]['term:prefLabel'])?g[property]['term:prefLabel'][0].value:property)}:&nbsp;</div>
@@ -89,7 +89,7 @@ Namespaces</div> <div class="button ${mode==='list2'?'selected':''}" click.trigg
 			<div class="button" click.trigger="addProperty()">Add Property</div>
 			<div class="button" click.trigger="revertCard()">Revert</div>
 		</div>
-		<div class="property" repeat.for="property of keys(g[context], ['rdf:type','term:prefLabel','term:hasPrimaryImageURL','term:hasDescription', 'term:hasExternalURL','term:inGlossary','vehicle:hasVehicleComments', 
+		<div class="property" repeat.for="property of keys(g[context], ['term:prefLabel','term:hasPrimaryImageURL','term:hasDescription', 'term:hasExternalURL','term:inGlossary','vehicle:hasVehicleComments', 
 		'term:hasIdentifier','term:hasSearchable'])">
 		  	<div class="label" title="${property}">${titleCase((g[property]['term:prefLabel'])?g[property]['term:prefLabel'][0].value:property)}:&nbsp;</div>
 		  	<div class="valueBlock">
@@ -171,16 +171,48 @@ Namespaces</div> <div class="button ${mode==='list2'?'selected':''}" click.trigg
 		</div>
 
 	  <div class="list" if.bind="mode==='list'">
-	  	<div class="type link" click.trigger="fetchContext(g[context]['rdf:type'][0].value,'list')">${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>
+	  	<!--<div class="type link" click.trigger="fetchContext(g[context]['rdf:type'][0].value,'list')">${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>-->
 		<h1 class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</h1>
+		<div class="imageHeader">
+			<div>
+				<img class="cardImage" src="${g[context]['term:hasPrimaryImageURL'][0].value}" if.bind="g[context]['term:hasPrimaryImageURL']"/>
+				<div class="largeColorSwatch" css="background-color:${g[context]['color:hasColorHexValue'][0].value}" if.bind="g[context].hasOwnProperty('color:hasColorHexValue')">&nbsp;</div>
+			</div> 
+			<ul class="backLinks">
+				<li class="backLink" 
+					repeat.for="predicate of keys(g[context],['term:hasPublicationStatus','rdfs:subClassOf','term:hasSourceTerm'])"
+					if.bind="g[context][predicate][0].type === 'uri'">
+					<span>${g[predicate]['term:prefLabel'][0].value}</span>
+					<span class="link" click.trigger="fetchContext(object.value,'list')"
+					 repeat.for="object of wrapArray(g[context][predicate])"
+					>${g[object.value]['term:prefLabel'][0].value}<span if.bind="!$last">, </span></span>
+				</li>
+			  	<div class="summaryContainer">
+					<div class="summary" innerhtml.bind="summary(g[context]['term:hasDescription'][0].value)"> </div>
+					<div class="button" click.trigger="fetchContext(context,'card')">More</div>
+				</div>
+			</ul>
+		</div>
+
+<!--		<ul class="backLinks">
+			<li class="backLink" 
+				repeat.for="predicate of keys(g[context],['term:hasPublicationStatus','rdfs:subClassOf','term:hasSourceTerm'])"
+				if.bind="g[context][predicate][0].type === 'uri'">
+				<span>${g[predicate]['term:prefLabel'][0].value}</span>
+				<span class="link" click.trigger="fetchContext(object.value,'list')"
+				 repeat.for="object of wrapArray(g[context][predicate])"
+				>${g[object.value]['term:prefLabel'][0].value}<span if.bind="!$last">, </span></span>
+			</li>
+		</ul>		
 	  	<div class="imageHeader">
 		  	<div class="imageContainer">
 		  		<img src.bind="g[context]['term:hasPrimaryImageURL'][0].value" class="thumbImage"/>
 		  	</div>
-		  	<div>
+		  	<div class="summaryContainer">
 				<div class="summary" innerhtml.bind="summary(g[context]['term:hasDescription'][0].value)"> </div>
+				<div class="button" click.trigger="fetchContext(context,'card')">More</div>
 			</div>
-		</div>			  		
+		</div>-->			  		
 	  	<div class="buttons">
 	  		<div class="button" click.trigger="showAdvancedListOptions=true" if.bind="showAdvancedListOptions === false">Show Advanced Options</div>
 	  		<div class="button" click.trigger="showAdvancedListOptions=false" if.bind="showAdvancedListOptions === true">Hide Advanced Options</div>
@@ -220,18 +252,18 @@ Namespaces</div> <div class="button ${mode==='list2'?'selected':''}" click.trigg
 	  </div>
 	  <div class="tabs">
 	     <div class="tab ${(predicate.curie === activeLinkPredicate)?'active':''}" repeat.for="predicate of filterListPredicates(predicates)" click.trigger="activateTab(predicate.curie)"
-	     if.bind="filterListPredicates(predicates).length>1"
+	     if.bind="filterListPredicates(predicates).length>0"
 	     title="${predicate.curie}">
 		   ${predicate.domainLabel } ${predicate.label} ${g[context].hasOwnProperty('class:hasPluralName')?g[context]['class:hasPluralName'][0].value:g[context]['term:prefLabel'][0].value}
 		  </div>
 	  </div>	  
 	  <div repeat.for="link of visibleLinks" class="linkContainer" if.bind="(g[link]['term:hasPublicationStatus'][0].value === 'publicationStatus:_Published') || userRole.has('accountRole:_Create')">
-	  		<div class="link iconContainer"><div class="iconSubcontainer"><img src="${g[link]['term:hasPrimaryImageURL'][0].value}" if.bind="g[link].hasOwnProperty('term:hasPrimaryImageURL')" click.trigger="fetchContext(link)" class="linkImage"/></div><div  class="link colorIcon "
+	  		<div class="link iconContainer"><div class="iconSubcontainer"><img src="${g[link]['term:hasPrimaryImageURL'][0].value}" if.bind="g[link].hasOwnProperty('term:hasPrimaryImageURL')" click.trigger="fetchContext(link,'list')" class="linkImage"/></div><div  class="link colorIcon "
 	  			if.bind="g[link].hasOwnProperty('color:hasColorHexValue')"
-	  			 click.trigger="fetchContext(link)"
+	  			 click.trigger="fetchContext(link,'list')"
 	  			css="background-color:${g[link]['color:hasColorHexValue'][0].value}">&nbsp;</div></div>
 	  		<div class="linkMeta">
-		  		<span click.trigger="fetchContext(link)" class="link"><span if.bind="g[link]['rdf:type'][0].value ==='class:_Property'">(${g[g[link]['rdfs:domain'][0].value]['term:prefLabel'][0].value}) </span>${g[link]['term:prefLabel'][0].value}&nbsp;<span if.bind="g[link]['rdf:type'][0].value ==='class:_Property'">(<span>${g[g[link]['rdfs:range'][0].value]['term:prefLabel'][0].value}<span class="datatypeLink">${g[g[link]['property:hasDatatype'][0].value]['term:prefLabel'][0].value}</span></span>)</span></span>
+		  		<span click.trigger="fetchContext(link,'list')" class="link"><span if.bind="g[link]['rdf:type'][0].value ==='class:_Property'">(${g[g[link]['rdfs:domain'][0].value]['term:prefLabel'][0].value}) </span>${g[link]['term:prefLabel'][0].value}&nbsp;<span if.bind="g[link]['rdf:type'][0].value ==='class:_Property'">(<span>${g[g[link]['rdfs:range'][0].value]['term:prefLabel'][0].value}<span class="datatypeLink">${g[g[link]['property:hasDatatype'][0].value]['term:prefLabel'][0].value}</span></span>)</span></span>
 		  		<!--<span class="link" click.trigger="fetchContext(g[link]['rdf:type'][0].value)" >[${g[g[link]['rdf:type'][0].value]['term:prefLabel'][0].value}]</span>-->
 		  		<span  if.bind="loginData.status">[<span class="link" repeat.for="sType of g[link]['rdf:type']"  click.trigger="fetchContext(sType.value,'list')">
 		  			${g[sType.value]['term:prefLabel'][0].value}<span if.bind="!$last">, </span></span>]</span> <div class="button" click.delegate="launchPage(link,'card')" if.bind="loginData.status">Card</div><div class="button" click.delegate="launchPage(link,'properties')"
@@ -334,32 +366,59 @@ Namespaces</div> <div class="button ${mode==='list2'?'selected':''}" click.trigg
 		  	<div class="imageContainer">
 		  		<img src.bind="g[context]['term:hasPrimaryImageURL'][0].value" class="thumbImage"/>
 		  	</div>
-			<h1 class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</h1>
-		</div>	  	
+		  	<div>
+				<div class="summary" innerhtml.bind="summary(g[context]['term:hasDescription'][0].value)"> </div>
+			</div>
+		</div>			  		
+	  	<div class="buttons">
+	  		<div class="button" click.trigger="showAdvancedListOptions=true" if.bind="showAdvancedListOptions === false">Show Advanced Options</div>
+	  		<div class="button" click.trigger="showAdvancedListOptions=false" if.bind="showAdvancedListOptions === true">Hide Advanced Options</div>
+	  	</div>
+	  	<div if.bind="showAdvancedListOptions">
+		  	<div class="listRefine">
+		  		<input type="search" value.bind="qRefine" placeholder="Refine" input.delegate="activateTab(activeLinkPredicate,true,false)"/>
+		  	</div>
+		  	<div class="buttons">
+		  	<div class="button" click.trigger="newCard()" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Create')">New ${g[context]['term:prefLabel'][0].value}</div>
+		  	<div class="button" click.trigger="newCard(context,true)" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Create')">Add Property</div>
+		  	<div class="button" click.trigger="newCard(g[context]['rdf:type'][0].value)" if.bind="(!context.startsWith('class:')) && userRole.has('accountRole:_Create')">New ${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>	  	
+		  	<div class="button" click.trigger="deleteClassItems(false)" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Delete')  && (context != 'class:_Class') && (context != 'class:_Property')">Clear Items In ${g[context]['term:prefLabel'][0].value}</div>
+		  	<div class="button" click.trigger="deleteClassItems(true)" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Delete')  && (context != 'class:_Class') && (context != 'class:_Property')">Delete Class, Properties and Items In ${g[context]['term:prefLabel'][0].value}</div>
+		    </div>
+		  	<div>Item Count = ${itemCount}</div>
+		  	<div class="sortField">
+		  		<select value.bind="sortMode" change.delegate="sort()">
+		  			<option repeat.for="sortModeState of sortModeStates" value.bind = "sortModeState.value">${sortModeState.label}</option>
+		  		</select>
+		  		<!--<div class="button" click.trigger="reverse()">${reversed?"Ascending":"Descending"}</div>-->
+		  	</div>
+		  	<div class="pager"><span class="link" click.trigger="prevRefPage()">&#9664;</span> Page ${page + 1} of ${totalPages} <span class="link" click.trigger="nextRefPage()">&#9654;</span></div>
+		  	<div class="constraintsBlock">
+		  		<div class="buttons">
+		  			<button click.trigger="newConstraint()" class="button">Add Constraint</button>
+		  			<button click.trigger="clearConstraints()" class="button">Clear Constraints</button>
+		  		</div>
+		  		<div class="contraints">
+		  			<div class="constraint property" repeat.for="constraint of constraints">
+		  				<button click.trigger="removeConstraint($index)">X</button>
+		  				<div class="constraintProperty label">&nbsp;${constraint.label}: &nbsp;</div>
+		  				<div class="constraintValue value">${constraint.objectLabel}</div>
+		  			</div>
+		  		</div>
+		  	</div>
+	  </div>
 	  <div class="tabs">
-	     <div class="tab ${(predicate.curie === activeLinkPredicate)?'active':''}" repeat.for="predicate of predicates" click.trigger="activateTab(predicate.curie)"
-	     if.bind="!(['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange'].includes(predicate.curie))"
+	     <div class="tab ${(predicate.curie === activeLinkPredicate)?'active':''}" repeat.for="predicate of filterListPredicates(predicates)" click.trigger="activateTab(predicate.curie)"
+	     if.bind="filterListPredicates(predicates).length>1"
 	     title="${predicate.curie}">
 		   ${predicate.domainLabel } ${predicate.label} ${g[context].hasOwnProperty('class:hasPluralName')?g[context]['class:hasPluralName'][0].value:g[context]['term:prefLabel'][0].value}
 		  </div>
-	  </div>	  	
-	  	
-	  	<div class="listRefine">
-	  		<input type="search" value.bind="qRefine" placeholder="Refine" input.delegate="activateTab(activeLinkPredicate,true,false)"/>
-	  	</div>
-	  	<div>Item Count = ${itemCount}</div>
-	  	<div class="sortField">
-	  		<select value.bind="sortMode" change.delegate="sort()">
-	  			<option repeat.for="sortModeState of sortModeStates" value.bind = "sortModeState.value">${sortModeState.label}</option>
-	  		</select>
-	  		<div class="button" click.trigger="reverse()">${reversed?"Ascending":"Descending"}</div>
-	  	</div>
-	  	<div class="pager"><span class="link" click.trigger="prevRefPage()">&#9664;</span> Page ${page + 1} of ${totalPages} <span class="link" click.trigger="nextRefPage()">&#9654;</span></div>
+	  </div>	  
 	  	<div class="imageFrame">
 	  	<div repeat.for="link of visibleLinks" class="imageContainer">
 	  		<div class="imagesEntry">
-	  		<img src="${g[link]['term:hasPrimaryImageURL'][0].value}" if.bind="g[link].hasOwnProperty('term:hasPrimaryImageURL')" click.trigger="fetchContext(link)" class="thumbImage link"/>
-	  		<div click.trigger="fetchContext(link)" class="link imageCaption">${g[link]['term:prefLabel'][0].value}.&nbsp;</div>
+	  		<img src="${g[link]['term:hasPrimaryImageURL'][0].value}" if.bind="g[link].hasOwnProperty('term:hasPrimaryImageURL')" click.trigger="fetchContext(link,'list')" class="thumbImage link"/>
+	  		<div click.trigger="fetchContext(link,'list')" class="link imageCaption">${g[link]['term:prefLabel'][0].value}.&nbsp;</div>
 	  		</div>
 	  		<!--<span class="linkDescription">${g[link]['term:hasDescription'][0].value}</span>
 	  		<span class="link" click.trigger="fetchContext(g[link]['rdf:type'][0].value)">[${g[g[link]['rdf:type'][0].value]['term:prefLabel'][0].value}]</span>-->
@@ -372,9 +431,23 @@ Namespaces</div> <div class="button ${mode==='list2'?'selected':''}" click.trigg
 		<div class="button" if.bind="g[context].hasOwnProperty('page:hasPreviousPage') && g[context]['page:hasPreviousPage'][0].value != 'page:_'" click.trigger="fetchContext(g[context]['page:hasPreviousPage'][0].value)">Previous Page</div>
 		<div class="button" if.bind="g[context].hasOwnProperty('page:hasNextPage') && g[context]['page:hasNextPage'][0].value != 'page:_'" click.trigger="fetchContext(g[context]['page:hasNextPage'][0].value)">Next Page</div>		
 	</div>
-	<img class="cardImage" src="${g[context]['term:hasPrimaryImageURL'][0].value}" if.bind="g[context]['term:hasPrimaryImageURL']"/>
-	<div class="largeColorSwatch" css="background-color:${g[context]['color:hasColorHexValue'][0].value}" if.bind="g[context].hasOwnProperty('color:hasColorHexValue')">&nbsp;</div> 
-  	<div class="type link" click.trigger="fetchContext(g[context]['rdf:type'][0].value,'list')">${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>
+	<div class="imageHeader">
+		<div>
+			<img class="cardImage" src="${g[context]['term:hasPrimaryImageURL'][0].value}" if.bind="g[context]['term:hasPrimaryImageURL']"/>
+			<div class="largeColorSwatch" css="background-color:${g[context]['color:hasColorHexValue'][0].value}" if.bind="g[context].hasOwnProperty('color:hasColorHexValue')">&nbsp;</div>
+		</div> 
+		<ul class="backLinks"><span class="title">${g[context]['term:prefLabel'][0].value}</span>
+			<li class="backLink" 
+				repeat.for="predicate of keys(g[context],['term:hasPublicationStatus','rdfs:subClassOf','term:hasSourceTerm'])"
+				if.bind="g[context][predicate][0].type === 'uri'">
+				<span>${g[predicate]['term:prefLabel'][0].value}</span>
+				<span class="link" click.trigger="fetchContext(object.value,'list')"
+				 repeat.for="object of wrapArray(g[context][predicate])"
+				>${g[object.value]['term:prefLabel'][0].value}<span if.bind="!$last">, </span></span>
+			</li>
+		</ul>
+	</div>
+  	<!--<div class="type link" click.trigger="fetchContext(g[context]['rdf:type'][0].value,'list')">${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>-->
 	<h1>${g[context]['term:prefLabel'][0].value}</h1>
 	<div class="buttons">
 	    <div class="button" click.trigger="newCard()" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Create')">New ${g[context]['term:prefLabel'][0].value}</div>
@@ -387,7 +460,7 @@ Namespaces</div> <div class="button ${mode==='list2'?'selected':''}" click.trigg
 	<div class="description  expanded">
 		<div class="bodyDisplay" repeat.for="descrKey of ['term:hasDescription']" innerHTML="${filterBody(g[context][descrKey][0].value)}"></div>
 		<div class="button" click.trigger="launchURL(g[context]['term:hasExternalURL'][0].value)"
-		if.bind="g[context]['term:hasExternalURL'][0].value != ''">More</div>
+		if.bind="g[context]['term:hasExternalURL'][0].value != ''">See Source</div>
 	</div>
 	<hr/>
   </div>
@@ -552,7 +625,7 @@ Namespaces</div> <div class="button ${mode==='list2'?'selected':''}" click.trigg
  	<h1>Search</h1>
  	<p>${searchData.count} ${searchData.count === 1?'item':'items'} found.</p>
 	<div repeat.for="item of searchData.results" class="searchItems" >
-		<div class="searchItem link" click.trigger="fetchContext(item.s)">
+		<div class="searchItem link" click.trigger="fetchContext(item.s,'list')">
 		<img src="${item.imageURL}" class="imageThumbnail"/>
 		<div>${item.prefLabel} [${item.sTypeLabel}]</div>
 		</div>

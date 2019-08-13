@@ -7,7 +7,9 @@ export class App {
     window.app = this;
     this.theme = "blue";
   	this.params = this.getQueryParams()||{};
-    this.defaultPage = "magazine:_CognitiveWorld";
+    this.defaultPage = "publisher:_CognitiveWorld";
+    this.defaultImage = "http://cognitiveworlds.com/lib/getImage.sjs?path=/images/publisher/_CognitiveWorld.jpeg";
+    this.defaultLabel = "Cognitive World";
     this.context = this.params != null?this.params.context||this.defaultPage:this.defaultPage;
     this.qRefine = this.params.qr||"";
     this.cache = this.params.cache||"cached";
@@ -16,14 +18,17 @@ export class App {
     this.history = [];
     this.mode=this.params.mode||"images";
     this.showAdvancedListOptions = false;
-    this.sortMode = "createdDateDesc";
+    //this.sortMode = "createdDateDesc";
+    this.sortMode = "sortMode:_AlphaAsc";
     this.sortModeStates = [
-      {label:"Created Date Descending",value:"createdDateDesc"},
-      {label:"Modified Date Descending",value:"modifiedDateDesc"},
-      {label:"Alphanumeric Ascending",value:"alphaAsc"},
-      {label:"Alphanumeric Descending",value:"alphaDesc"},
-      {label:"Internal Order Ascending",value:"ordinalAsc"},
-      {label:"Internal Order Descending",value:"ordinalDesc"}
+      {label:"Created Date Descending",value:"sortMode:_CreatedDateDesc"},
+      {label:"Modified Date Descending",value:"sortMode:_ModifiedDateDesc"},
+      {label:"Created Date Ascending",value:"sortMode:_CreatedDateAsc"},
+      {label:"Modified Date Ascending",value:"sortMode:_ModifiedDateAsc"},
+      {label:"Alphanumeric Ascending",value:"sortMode:_AlphaAsc"},
+      {label:"Alphanumeric Descending",value:"sortMode:_AlphaDesc"},
+      {label:"Internal Order Ascending",value:"sortMode:_OrdinalAsc"},
+      {label:"Internal Order Descending",value:"sortMode:_OrdinalDesc"}
 ];
     this.namespace = '';
     this.activeLinkPredicate = null;
@@ -180,7 +185,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
   }
 
   filterListPredicates(predicates){
-    return predicates != null?predicates.filter((predicate)=>!(['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange'].includes(predicate.curie))):[];
+    return predicates != null?predicates.filter((predicate)=>!(['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange','term:hasPublishingStatus','term:hasSourceTerm'].includes(predicate.curie))):[];
   }
 
   fetchSearch(){
@@ -320,35 +325,39 @@ inputSearch(){
   		//console.log(this.links);
   		//console.log("entering sort");
   		if (linkNodes.length>1){
-        if (this.sortMode === "alphaAsc"){
+        if (this.sortMode === "sortMode:_AlphaAsc"){
             sortValue = (a) => {
               let item = a["term:prefLabel"][0].value.trim();
               return item;
             }
             linkNodes.sort((a,b)=>sortValue(a) <= sortValue(b)?-1:1)
         }
-        if (this.sortMode === "alphaDesc"){
+        if (this.sortMode === "sortMode:_AlphaDesc"){
             sortValue = (a) => {
               let item = a["term:prefLabel"][0].value.trim();
               return item;
             }
             linkNodes.sort((a,b)=>sortValue(a) <= sortValue(b)?1:-1)
         }
-        if (this.sortMode === "createdDateDesc"){
+        if (this.sortMode === "sortMode:_CreatedDateDesc"){
             sortValue = (a)=> a.hasOwnProperty('term:hasCreatedDate')?`${a["term:hasCreatedDate"][0].value}`:"";
             linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
         }
-        if (this.sortMode === "modifiedDateDesc"){
+        if (this.sortMode === "sortMode:_CreatedDateAsc"){
+            sortValue = (a)=> a.hasOwnProperty('term:hasCreatedDate')?`${a["term:hasCreatedDate"][0].value}`:"";
+            linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?-1:1)
+        }
+        if (this.sortMode === "sortMode:_ModifiedDateAsc"){
             sortValue = (a)=> a.hasOwnProperty('term:hasLastModifiedDate')?`${a["term:hasLastModifiedDate"][0].value}`:"";
-            linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
+            linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?-1:1)
 
         }
-        if (this.sortMode === "ordinalAsc"){
+        if (this.sortMode === "sortMode:_OrdinalAsc"){
             sortValue = (a)=> a.hasOwnProperty('term:hasOrder')?parseInt(a["term:hasOrder"][0].value):0;
             linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?-1:1)
 
         }
-        if (this.sortMode === "ordinalDesc"){
+        if (this.sortMode === "sortMode:_OrdinalDesc"){
             sortValue = (a)=> a.hasOwnProperty('term:hasOrder')?parseInt(a["term:hasOrder"][0].value):0;
             linkNodes.sort((a,b)=> sortValue(a) <= sortValue(b)?1:-1)
 
@@ -629,8 +638,8 @@ inputSearch(){
     console.log(termObjs);
     this.g[this.context]['term:hasCrossReference']=termObjs
     let buffer = [];
-    let update = Object.keys(this.g[context]).forEach((predicate)=>{
-      this.g[context][predicate].forEach((object)=>{
+    let update = Array.from(Object.keys(this.g[context])).forEach((predicate)=>{
+      Array.from(this.g[context][predicate]).forEach((object)=>{
         if (object.type==='uri'){
           buffer.push(`${curie} ${predicate} ${object.value}.`)
         }
@@ -1537,7 +1546,8 @@ refreshBlocks(){
   summary(body){
     if (body!= null){
         let text = body.replace(/<.+?>/g,'');
-        return text.match(/\./)?`${text.split(/\./)[0]}.`:text;
+        text = text.substr(0,600);
+        return text.replace(/^(.*)\..*/,'$1 ...');
       }
     else {return ""}
   }

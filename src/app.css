@@ -116,8 +116,9 @@ body  {
 	max-height:200px;
 	display:block;
 }
-.summary {
-	margin-left:0.25in;
+.summaryContainer {
+	margin:10pt;
+	font-style:italic;
 }
 .card {
 	width:100%;
@@ -700,4 +701,14 @@ table td.inlineLabel {
 	display:flex;
 	flex-direction:row;
 
+}
+.backLinks {
+	display:block;
+	width:500px;
+	padding:20pt;
+	border:solid 2px var(--contextBorderColor);
+}
+.backLinks .title {
+	margin:-12pt;
+	font-weight:bold;
 }

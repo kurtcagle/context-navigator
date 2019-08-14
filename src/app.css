@@ -712,3 +712,9 @@ table td.inlineLabel {
 	margin:-12pt;
 	font-weight:bold;
 }
+
+.itemCount {
+	border-bottom: solid 2px  var(--contextBorderColor);
+	padding:5pt;
+	margin-bottom:5pt;
+}

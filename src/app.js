@@ -19,7 +19,7 @@ export class App {
     this.mode=this.params.mode||"images";
     this.showAdvancedListOptions = false;
     //this.sortMode = "createdDateDesc";
-    this.sortMode = "sortMode:_AlphaAsc";
+    this.sortMode = "sortMode:_ModifiedDateDesc";
     this.sortModeStates = [
       {label:"Created Date Descending",value:"sortMode:_CreatedDateDesc"},
       {label:"Modified Date Descending",value:"sortMode:_ModifiedDateDesc"},
@@ -37,10 +37,10 @@ export class App {
     console.log(cookieLogin);
     this.loginData = cookieLogin?cookieLogin:{username:"",password:"",permissions:[],status:false,action:"login"};
     this.userRole = new Set(this.loginData.permissions);
-    this.page = 0;
-    this.pageSize = 12;
+    this.page = 1;
+    this.pageSize = 10;
     this.itemCount = 0;
-    this.totalPages = 0;
+    this.totalPages = 1;
     this.wait = false;
     this.templates = {};
     this.server = (""+document.location.href).match(/\:\/\/localhost/)?"http://3.84.16.9:8020":"";
@@ -95,6 +95,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
     this.defaultNamespace = "http://semantical.llc/ns/";
     this.activeCard = Object.assign(this.defaultCard,{});
     this.linkPropertyList = {};
+    this.activeLinksData = {count:0,data:[],page:1,pageSize:20,numPages:1};
     this.displayFullBody = false;
 //    this.server = "";
 //    this.client = this.server
@@ -119,7 +120,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
     this.globalActions.find((action)=>(action.id === this.selectedAction)).action();
   }
 
-  fetchContext(context,hash="card",qRefine="",noPush=false,cacheState = "cached"){
+  fetchContext(context,hash="list",qRefine="",noPush=false,cacheState = "cached"){
     var body = this.constraints;
   	var options = {method: 'POST',
                body: JSON.stringify(body,null,4),
@@ -138,6 +139,11 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
   			this.report = this.g["report:_"]
   			if (!noPush){this.history.push(this.context);}
   			this.context = this.report['report:hasContext'][0].value;
+        if (this.g[this.context]['rdf:type'][0].value != 'class:_Class'){
+          if (this.g[this.context].hasOwnProperty('rdfs:subClassOf')){
+            delete this.g[this.context]['rdfs:subClassOf'];
+          }
+        }
   			this.namespace = this.ciri(context);
 //  			this.predicates = this.report['report:hasPredicate']?this.report['report:hasPredicate'].map((predicate)=>predicate.value):[];
         this.predicates = [];
@@ -157,7 +163,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
           })
         }
   			this.links = this.report['report:hasLink']?this.report['report:hasLink'].filter((link)=>link.value != null).map((link)=>link.value):[];
-        this.page = 0;
+        this.page = 1;
   			this.sort();
         let tabIndex = this.predicates.map((predicate)=>predicate.curie).includes('rdf:type')?this.predicates.map((predicate)=>predicate.curie).indexOf('rdf:type'):0;
   			this.activateTab(this.predicates.map((predicate)=>predicate.curie)[tabIndex],true,true);
@@ -256,17 +262,12 @@ inputSearch(){
   	//console.log(this.contextData['@context'])
   	return `${this.contextData['@context'][prefix]}${local}`;
   }
-  activateTab(predicate,resetPage = true,resetMode = false){
+  activateTab(predicate = 'rdf:type',resetPage = true,resetMode = false){
   	//console.log(this.qRefine);
   	this.activeLinkPredicate = predicate;
-    console.log(this.activeLinkPredicate);
+/*    console.log(this.activeLinkPredicate);
   	var regexes = this.qRefine.split(/\s+/).map((token)=>(token != '')?new RegExp(token,'i'):null).filter((regex)=>regex != null);
   	//console.log(regex);
-  	/*this.links.forEach((link)=>{
-  		this.g[link].visible = this.g[link].hasOwnProperty(this.activeLinkPredicate) && (this.g[link][this.activeLinkPredicate][0].value === this.context);
-  		this.g[link].visible = this.g[link].visible && (regex?(this.g[link]['term:prefLabel'][0].value).match(regex):true);
-  		
-  		})*/
     var predicateLinks = this.links.filter((link)=>this.g[link].hasOwnProperty(this.activeLinkPredicate) && (this.g[link][this.activeLinkPredicate][0].value === this.context));
     var qLinks = predicateLinks;
 //    var searchables = new Set(['dealer:Class','vehicle:Class']);
@@ -284,31 +285,50 @@ inputSearch(){
     this.totalPages = Math.ceil((this.itemCount - 1)/ this.pageSize);
     this.visibleLinks =qLinks.filter((link,index)=>index >= (this.pageSize * this.page) && (index <this.pageSize * (this.page + 1)))
     //this.visibleLinks = this.filterVisible();
-    if (resetPage){
-      this.page = 0;
-    }
+    
     if (resetMode){
       this.mode = "card"
-    }
+    } */
+    // New code for retrieving lists
+    let path = `${this.server}/lib/links.sjs?context=${this.context}&predicate=${predicate}&q=${this.qRefine}&page=${this.page}`;
+    path += `&pageSize=${this.pageSize}&sort=${this.sortMode}`;
+    window.fetch(path)
+    .then((response)=>response.json())
+    .then((json)=>{
+      console.log(json);
+      this.activeLinksData = json;
+      this.page = json.page;
+      if (resetPage){
+      this.page = 1;
+      }
+      this.totalPages = json.numPages;
+    })
+
   	}
     prevRefPage(){
       if (this.page > this.totalPages){
-        this.page = this.totalPages - 1;
+        this.page = this.totalPages;
       }
       else {
-        this.page = this.page>0?this.page - 1:0;
+        this.page = this.page>1?this.page - 1:1;
         }
       this.activateTab(this.activeLinkPredicate,false);
     }
     nextRefPage(){
       if (this.page > this.totalPages){
-          this.page = this.totalPages - 1}
+          this.page = this.totalPages}
       else {
-        this.page = this.page<this.totalPages - 1?this.page + 1:this.totalPages -1;
+        this.page = this.page<this.totalPages?this.page + 1:this.totalPages;
       }
       this.activateTab(this.activeLinkPredicate,false);
     }
+    setPage(page){
+      this.page = page;
+      this.activateTab(this.activeLinkPredicate,false);      
+    }
   	sort(){
+      this.activateTab(this.activeLinkPredicate,false);
+      return null;
       console.log(this.sortMode);
       let sortValue;
   		//console.log("Links");
@@ -478,7 +498,7 @@ inputSearch(){
 
     reverse(){
       this.reversed = ! this.reversed;
-      this.page =0;
+      this.page = 1;
       this.activateTab(this.activeLinkPredicate);
     }
 
@@ -663,7 +683,7 @@ where {
   window.fetch(path,{method:"POST",body:JSON.stringify(newRecord,null,4)})
        .then((response)=>response.text())
        .then((text)=>{
-          this.pageIndex = this.pageIndex+1;
+          //this.pageIndex = this.pageIndex+1;
           //location.href=`/?context=${context}&index=${this.pageIndex}#properties`;
 //          this.pinPage(true,"properties");
 //          this.cache="refresh";
@@ -1404,7 +1424,7 @@ filterComplianceTest(){
       }
       .authorDescription {font-size:10pt;font-style:italic;display:block;width:70%}
       `,
-      template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}')" class="aboutAuthor_1">
+      template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}','list')" class="aboutAuthor_1">
         <div class="imageContainer2"><img src="${graph[context]['term:hasPrimaryImageURL'][0].value}" class="authorImage2"/></div>
         <div class="authorDescription">
         ${graph[context]['term:hasDescription'][0].value}</div>

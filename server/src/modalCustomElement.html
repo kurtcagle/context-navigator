@@ -1,0 +1,32 @@
+<!-- Always decorate your custom element template tag with a class, preferably
+  matching the name of your custom element. This will allow you to write
+  robust css that plays well with the as-element attribute, e.g. <form as-element="modal">. -->
+<template class="modal ${visible ? 'visible' : ''}">
+
+
+  <!-- I want my modal to have a "greyed out" background, so I need to have a 
+    box in my modal that will contain the modal dialog box content. -->
+  <div class="modal-content">
+
+    <!-- I also might want to add an optional header element. Since I want it
+      to be optional, I will probably be using the ":empty" selector, so I need
+      to make sure there is no whitespace in the element. I give it a slot and
+      call the slot "header". -->
+    <div class="modal-header"><slot name="header"></slot></div>
+
+    <!-- Next I have the main body of the modal. It contains the default slot. -->
+    <div class="modal-body">
+      <slot></slot>
+    </div>
+
+    <!-- Finally, I want to include an optional footer element. Every modal
+      should probably have this footer element, but almost every modal is going
+      to have the same content in the footer, so I add an optional slot "footer"
+      with default content. The default action will be to close the modal. -->
+    <div class="modal-footer">
+      <slot name="footer">
+        <button click.delegate="close()">Close</button>
+      </slot>
+    </div>
+  </div>
+</template>

@@ -1,0 +1,13 @@
+.graphDisplay {
+    border:inset 2px gray;
+}
+
+.graphDisplay.wait {
+    cursor:wait;
+    }
+.graphGoButton {
+    position:absolute;
+    z-index:1;
+    top:10px;
+    left:10px;
+}

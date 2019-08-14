@@ -1,0 +1,60 @@
+prefix cardinality: <http://dupont.com/ns/cardinality/>
+prefix city: <http://dupont.com/ns/city/>
+prefix class: <http://dupont.com/ns/class/>
+prefix color: <http://dupont.com/ns/color/>
+prefix constraint: <http://dupont.com/ns/constraint/>
+prefix country: <http://dupont.com/ns/country/>
+prefix currency: <http://dupont.com/ns/currency/>
+prefix document: <http://dupont.com/ns/document/>
+prefix enzymeActivity: <http://dupont.com/ns/enzymeActivity/>
+prefix facility: <http://dupont.com/ns/facility/>
+prefix fermentationType: <http://dupont.com/ns/fermentationType/>
+prefix geneticEngineeredStatus: <http://dupont.com/ns/geneticEngineeredStatus/>
+prefix graph: <http://dupont.com/ns/graph/>
+prefix grn21CFRReference: <http://dupont.com/ns/grn21CFRReference/>
+prefix identifier: <http://dupont.com/ns/identifier/>
+prefix indicator: <http://dupont.com/ns/indicator/>
+prefix intendedUse: <http://dupont.com/ns/intendedUse/>
+prefix material: <http://dupont.com/ns/material/>
+prefix nodeKind: <http://dupont.com/ns/nodeKind/>
+prefix organism: <http://dupont.com/ns/organism/>
+prefix page: <http://dupont.com/ns/page/>
+prefix property: <http://dupont.com/ns/property/>
+prefix proteinEngineeredStatus: <http://dupont.com/ns/proteinEngineeredStatus/>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix region: <http://dupont.com/ns/region/>
+prefix report: <http://dupont.com/ns/report/>
+prefix selfClonedStatus: <http://dupont.com/ns/selfClonedStatus/>
+prefix simpleType: <http://dupont.com/ns/simpleType/>
+prefix state: <http://dupont.com/ns/state/>
+prefix strain: <http://dupont.com/ns/strain/>
+prefix term: <http://dupont.com/ns/term/>
+prefix unit: <http://dupont.com/ns/unit/>
+prefix unitSystem: <http://dupont.com/ns/unitSystem/>
+prefix unitType: <http://dupont.com/ns/unitType/>
+prefix usage: <http://dupont.com/ns/usage/>
+prefix usageFunction: <http://dupont.com/ns/usageFunction/>
+prefix xsd: <http://www.w3.org/2001/XMLSchema#>
+
+construct {
+  ?report a class:Report.
+  ?report report:hasLabel ?name.
+  ?report report:hasTimestamp ?timestamp.
+  ?report report:hasBatchId ?batchId.
+  ?report report:hasInstanceType ?instantType.
+  ?report report:hasValid ?validInstance.
+  ?report report:hasInvalid ?invalidInstance.
+  ?report report:hadDescription ?msg.
+}
+ where {
+bind (iri(concat(report:,'_',struuid())) as ?report)
+bind ("Resource in List" as ?name)
+bind (now() as ?timestamp)
+?this a ?instanceType.
+optional {
+  ?validLink ?predicate ?this.
+  ?validLink a ?constraintType.
+  }
+bind(if(bound(?validLink),?this,()) as ?validInstance)
+bind(if(!bound(?validLink),?this,()) as ?invalidInstance)
+} order by ?validInstance ?invalidInstance

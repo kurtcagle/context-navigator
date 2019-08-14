@@ -1,0 +1,1055 @@
+import { Router } from 'aurelia-router';
+import {AureliaCookie} from 'aurelia-cookie';
+
+export class App {
+  constructor() {
+    //this.userRole = new Set([]);
+  	this.params = this.getQueryParams()||{};
+    this.context = this.params != null?this.params.context||"page:_Home":"page:_Home";
+    this.qRefine = this.params.qr||"";
+    this.cache = this.params.cache||"cached";
+    this.q  = this.params.q||"";
+    this.searchData = {};
+    this.history = [];
+    this.mode=this.params.mode||"card";
+    this.namespace = '';
+    this.activeLinkPredicate = null;
+    this.visibleLinks = [];
+    let cookieLogin = JSON.parse(AureliaCookie.get("login"));
+    console.log(cookieLogin);
+    this.loginData = cookieLogin?cookieLogin:{username:"",password:"",permissions:[],status:false,action:"login"};
+    this.userRole = new Set(this.loginData.permissions);
+    this.page = 0;
+    this.pageSize = 12;
+    this.itemCount = 0;
+    this.totalPages = 0;
+    this.wait = false;
+    this.templates = {};
+    this.server = "";//"http://3.84.16.9:8020";
+    this.client = "";//"http://localhost:9000";
+    this.cardEdit = false;
+    this.tempGraph = null;
+    this.typedMessage = '';
+    this.complianceItem={country:"", industry:"",strain:"",enzyme:"",product:"",complianceTest:"",
+      noItemsMessage:`<div><p>No Compliance Tests Exist for this combination.</p><p>While this cannot guarantee that there are no compliance requirements,
+      it does mean that Dupont has not yet developed a compliance test for this contingency, so you should check with regulatory compliance guidelines.</p></div>`};
+    this.instanceList = {};
+    this.instanceList['class:_Class']={};
+    this.instanceList['class:_Class']['rdf:type']=[];
+    this.constraints = [];
+    this.activeConstraint = {predicate:'',object:''}
+    this.availableProperties = [];
+    this.pageIndex =0;
+    this.activeProperty = {};
+    this.activePropertyValues = [];
+    var hash = window.location.hash.substr(1);
+    this.hash = this.mode||hash||"card";
+    console.log(this.hash)
+    // refs
+    this.newModal;
+    this.duplicateModal;
+    this.addPropertyModal;
+    this.addConstraintModal;
+    this.editImageModal;
+    this.loginModal 
+    this.editImage = {
+      src:"",
+      width:"500px",
+      height:"300px",
+      alt:"",
+      title:"",
+      align:"float:left"
+    }
+    this.globalActions=[
+      {label:"Select an action",id:"selectAction",action:()=>console.log("Select an action")},
+      {label:"Go To Classes",id:"createNewClass",action:()=>this.fetchContext("class:_Class","list")},
+      {label:"Go To Properties",id:"createNewProperties",action:()=>this.fetchContext("class:_Property","list")},
+    ];
+    this.selectedAction="selectAction";
+    this.defaultCard = {title:"New Card",body:"This is a new card.",image:"",curie:"foo:bar",prefix:"",ns:"",datatype:"",nodeKind:"",
+domain:"",range:"",cardinality:""};
+    this.defaultNamespace = "http://kia.com/ns/";
+    this.activeCard = Object.assign(this.defaultCard,{});
+    this.linkPropertyList = {};
+    this.displayFullBody = false;
+//    this.server = "";
+//    this.client = this.server
+    setTimeout(()=>{
+        this.fetchContext(this.context,this.mode)
+        this.updateInstanceList('class:_Class');
+        this.updateInstanceList('class:_Cardinality');
+        this.updateInstanceList('class:_XSD');
+        this.updateInstanceList('class:_Country');
+        this.updateInstanceList('class:_Industry');
+        this.updateInstanceList('class:_Strain');
+        this.updateInstanceList('class:_ComplianceTest');
+      },50);    
+  }
+
+  showTypedMessage() {
+    alert(this.typedMessage);    
+  }
+
+  invokeAction(){
+    this.globalActions.find((action)=>(action.id === this.selectedAction)).action();
+  }
+
+  fetchContext(context,hash="card",qRefine="",noPush=false,cacheState = "cached"){
+  	var options = {method: 'GET',
+               mode: 'cors',
+               cache: 'default'};
+    this.wait = true;
+    //this.cache = cacheState;
+  	window.fetch(`${this.server}/lib/server.sjs?context=${context}&cache=${this.cache}`,options)
+  	.then((blob)=>blob.json())
+  	.then((json)=>{
+
+        this.selectedAction = "";
+  			this.contextData = json;
+  			this.ns = json["@context"];
+  			this.g = json["graph"];
+  			this.report = this.g["report:_"]
+  			if (!noPush){this.history.push(this.context);}
+  			this.context = this.report['report:hasContext'][0].value;
+  			this.namespace = this.ciri(context);
+  			this.predicates = this.report['report:hasPredicate']?this.report['report:hasPredicate'].map((predicate)=>predicate.value):[];
+  			this.links = this.report['report:hasLink']?this.report['report:hasLink'].map((link)=>link.value):[];
+        this.page = 0;
+  			this.sort();
+        let tabIndex = this.predicates.includes('rdf:type')?this.predicates.indexOf('rdf:type'):0;
+  			this.activateTab(this.predicates[tabIndex],true,true);
+  			this.qRefine = qRefine;
+  			this.q = "";
+        this.reversed = false;
+        this.wait = false;
+        this.mode = hash;
+  			//console.log(this.activeLinkPredicate);
+        //console.log("************ Predicates");
+        //console.log(this.predicates)
+  			//console.log(json)
+  		})
+  	.catch((err)=>{console.log(err);this.wait = false;})
+  }
+
+
+
+  fetchSearch(){
+  	if (this.q != ""){
+  	var options = {method: 'GET',
+               mode: 'cors',
+               cache: 'default'};
+  	window.fetch(`${this.server}/lib/search.sjs?q=${this.q}`,options)
+  	.then((blob)=>blob.json())
+  	.then((json)=>{
+        this.mode = 'search';
+        this.searchData = json;
+
+  			//console.log("startSearch");
+/*  			this.contextData = json;
+  			this.ns = json["@context"];
+  			this.g = json["graph"];
+  			this.report = this.g["report:_"];
+  			this.history.push(this.context);
+  			this.context = this.report['report:hasContext'][0].value;
+
+  			this.namespace = this.ciri(this.context);
+  			this.predicates = this.report['report:hasPredicate']?this.report['report:hasPredicate'].map((predicate)=>predicate.value):[];
+  			this.links = this.report['report:hasLink']?this.report['report:hasLink'].map((link)=>link.value):[];
+  			this.sort();
+  			this.activateTab(this.predicates[0]);
+  			this.qRefine = "";
+  			//console.log(this.activeLinkPredicate);
+  			//console.log(json)
+  			//console.log("endSearch");
+        */
+  		})
+  	.catch((err)=>console.log(err))
+  	}
+  }
+
+
+
+
+  keys(obj,excludes=[]){
+  	console.log("***** Keys");
+  	let excludeSet = new Set(excludes);
+  	let keysObj = [];
+  	for(var key in obj){
+  		//console.log(obj);
+  		//console.log(key);
+  		if (!excludeSet.has(key)){keysObj.push(key)}
+  		}
+  	//console.log(keysObj);	
+  	return keysObj.sort();
+  }
+  ciri(expr){
+  	let [prefix,local] = expr.split(":");
+  	//console.log(prefix,local);
+  	//console.log(this.contextData['@context'])
+  	return `${this.contextData['@context'][prefix]}${local}`;
+  }
+  activateTab(predicate,resetPage = true,resetMode = false){
+  	//console.log(this.qRefine);
+  	this.activeLinkPredicate = predicate;
+  	var regexes = this.qRefine.split(/\s+/).map((token)=>(token != '')?new RegExp(token,'i'):null).filter((regex)=>regex != null);
+  	//console.log(regex);
+  	/*this.links.forEach((link)=>{
+  		this.g[link].visible = this.g[link].hasOwnProperty(this.activeLinkPredicate) && (this.g[link][this.activeLinkPredicate][0].value === this.context);
+  		this.g[link].visible = this.g[link].visible && (regex?(this.g[link]['term:prefLabel'][0].value).match(regex):true);
+  		
+  		})*/
+    var predicateLinks = this.links.filter((link)=>this.g[link].hasOwnProperty(this.activeLinkPredicate) && (this.g[link][this.activeLinkPredicate][0].value === this.context));
+    var qLinks = predicateLinks;
+//    var searchables = new Set(['dealer:Class','vehicle:Class']);
+    for (var regex of regexes){
+//      if (searchables.has(this.g[this.context]['rdf:type'][0].value)){
+//          console.log(regex);
+//          console.log(qLinks);
+//          qLinks = qLinks.filter((link)=> regex?((this.g[link]['term:prefLabel'][0].value).match(regex))||(this.g[link]['term:hasSearchable'][0].value).match(regex):true);
+//        } else {
+          qLinks = qLinks.filter((link)=> regex?(this.g[link]['term:prefLabel'][0].value).match(regex):true);
+//        }
+    }
+    this.itemCount = qLinks.length;
+    if (this.reversed){qLinks.reverse()}
+    this.totalPages = Math.ceil((this.itemCount - 1)/ this.pageSize);
+    this.visibleLinks =qLinks.filter((link,index)=>index >= (this.pageSize * this.page) && (index <this.pageSize * (this.page + 1)))
+    //this.visibleLinks = this.filterVisible();
+    if (resetPage){
+      this.page = 0;
+    }
+    if (resetMode){
+      this.mode = "card"
+    }
+  	}
+    prevRefPage(){
+      if (this.page > this.totalPages){
+        this.page = this.totalPages - 1;
+      }
+      else {
+        this.page = this.page>0?this.page - 1:0;
+        }
+      this.activateTab(this.activeLinkPredicate,false);
+    }
+    nextRefPage(){
+      if (this.page > this.totalPages){
+          this.page = this.totalPages - 1}
+      else {
+        this.page = this.page<this.totalPages - 1?this.page + 1:this.totalPages -1;
+      }
+      this.activateTab(this.activeLinkPredicate,false);
+    }
+  	sort(){
+  		//console.log("Links");
+  		//console.log(this.links);
+  		this.links.forEach((link)=>{
+  			//console.log(this.g[link]);
+  			this.g[link].link = link;
+  		});
+  		var linkNodes = this.links.map((link)=>{
+  			//console.log("Link");
+  			//console.log(link);
+  			return this.g[link]
+  		});
+  		//console.log(this.links);
+  		//console.log("entering sort");
+  		if (linkNodes.length>1){
+	  		linkNodes.sort((a,b)=>a["term:prefLabel"][0].value <= b["term:prefLabel"][0].value?-1:1)
+	  	}
+	  	//console.log("Link Nodes");
+  		//console.log(linkNodes);
+  		this.links=linkNodes.map((node)=>node.link);
+  	}
+  	getQueryParams(){
+  		var url = window.document.location.href;
+  		var queryStr = url.split("?")[1];
+  		var params = {};
+  		if (queryStr != null){
+  			var paramStrs = queryStr.split("&");
+  			paramStrs.forEach((paramStr)=>{
+  				var paramTerms = paramStr.split("=");
+  				var paramName = paramTerms[0];
+  				var paramValue = paramTerms.slice(1).join("=");
+  				params[paramName] = paramValue;
+  			})
+  	    return params;
+  		}
+  	}
+  	displayLiteral(item){
+      switch(item.datatype){
+        case 'currency:_USD':{return parseFloat(item.value).toLocaleString(["en-us"],{style:"currency",currency:"USD"})};
+        case 'unit:_MilesPerGallon':{return `${parseInt(item.value)} mpg`};
+        case 'unit:_Mile':{return `${parseInt(item.value).toLocaleString(["en-us"],{style:"decimal",maximumFractionDigits:1})} miles`};
+        case "xsd:dateTime":{return `${(new Date(item.value)).toLocaleString(["en-us"],{ timeZone: 'UTC' } )}`};
+        case "termType:_Image":return `<a href="${item.value}" target="_blank"><img src="${item.value}" class="imageThumbnail"/></a>`;
+        case "xsd:imageURL":return `<div class="internalImageContainer"><a href="${item.value}" target="_blank"><img src="${item.value}" class="link internalImage"/></a></div`;
+        case "xsd:color":return `<div class="colorSwatchContainer">
+          <div class="colorSwatch" style="background-color:${item.value}">&nbsp;</div>
+          <div class="colorValue">${item.value}</div>
+          </div>`;
+        case "xsd:anyURI":return `<a href="${item.value}" target="_blank" class="link">${item.value.replace(/(http.+?\/\/)(.+?\/).*/,'$1$2...')}</a>`;
+        case "xsd:anyURL":return `<a href="https://${item.value}" target="_blank" class="link">${item.value.replace(/(http.+?\/\/)(.+?\/).*/,'$1$2...')}</a>`;
+        case "identifier:_Email":return `<a href="mailto:${item.value}" target="_blank" class="emailLink"><span>${item.value}</span></a>`
+        case "xsd:hours":{
+          let lines = item.value.split('|');
+          let entries = lines.map((line)=>{
+            if (line != ''){
+              let [day,time] = line.replace(/(.+?)\:(.+?)/,"$1#$2").split("#");
+              day = day.trim();
+              time = time.trim();
+              return `<div class="item"><div class="label">${day}</div><div class="value">${time}</div></div>`
+            }
+            else {return ''}
+          })
+          return `<div class="hours">${entries.join('')}</div>`
+        };
+  		  default: {return `${item.value}`};
+      }
+
+  	}
+  	launchService(){
+  		window.open(`${this.server}/lib/server.sjs?context=${this.context}`,'')
+  	}
+    launchSeo(){
+      window.open(`${this.server}/lib/seo.sjs?context=${this.context}`,'')
+    }
+  	pinPage(refresh=true,mode="card"){
+      //console.log(this.context);
+  		window.location.href = `${this.client}/?context=${this.context}${refresh?`&cache=refresh&mode=${mode}`:''}`;
+  	}
+  	launchPage(){
+  		window.open(`${this.client}/?context=${this.context}`,'')
+  	}
+  	linkCount(){
+
+  	}
+  	goBack(){
+  		if (this.history.length > 1){
+  			//this.history.pop();
+  			var context = this.history.pop();
+  			this.fetchContext(context,"card","",true);
+  		}
+  	}
+  	wrapArray(arr){
+  		let wrappedArray = Array.isArray(arr)?arr:(arr!=null)?[arr]:[];
+      if (wrappedArray.length > 0){
+        if (wrappedArray[0].type === 'uri'){
+          wrappedArray.sort((a,b)=>a.value > b.value?1:a.value < b.value?-1:0)
+//          wrappedArray.sort((a,b)=>this.g[a.value]['term:prefLabel'][0].value > this.g[b.value]['term:prefLabel'][0].value?1:this.g[a.value]['term:prefLabel'][0].value < this.g[b.value]['term:prefLabel'][0].value?-1:0)
+        }}
+      return wrappedArray;
+  	}
+    titleCase(str){
+      var tokens = str.split(/\s+/);
+      return tokens.map((token)=>`${token.substr(0,1).toUpperCase()}${token.substr(1)}`).join(' ');
+    }
+
+    tokenize(str,tokenCase = "title"){
+      var tokens = str.split(/\s+/);
+      let expr = tokens.map((token)=>`${token.substr(0,1).toUpperCase()}${token.substr(1)}`).join('');
+      expr = expr.replace(/[^A-z0-9_\-]/gi,'');
+      if (tokenCase === "camel"){
+        return `${expr.substr(0,1).toLowerCase()}${expr.substr(1)}`;
+        }
+      else {
+        return expr;        
+      }
+    }
+
+    reverse(){
+      this.reversed = ! this.reversed;
+      this.page =0;
+      this.activateTab(this.activeLinkPredicate);
+    }
+    setMode(mode){
+      if (this.cardEdit){
+         alert("You must save or revert changes before changing mode.")
+      }
+      else {
+        this.mode=mode;
+        this.hash=this.mode;
+        switch(mode){
+          case "ingestion":this.loadIngestData();break;
+          case "list":{
+            if (this.predicates.includes('rdf:type')){
+              console.log(this.predicates);
+              this.activateTab('rdf:type')
+            }
+            break;
+          }
+          default:break
+        }
+      }
+    }
+    loadIngestData(){
+ //     console.log("Ingest data loaded.")
+        fetch(`${this.server}/files/analysis.json`)
+        .then((blob)=>blob.json())
+        .then((json)=>{
+          this.templates = json;
+
+        })
+    }
+    editCard(){
+       this.activeCard.title = this.g[this.context]['term:prefLabel'][0].value;
+       this.activeCard.body = this.g[this.context]['term:hasDescription']!=null?this.g[this.context]['term:hasDescription'][0].value:"";
+       console.log(this.g[this.context].hasOwnProperty('term:hasPrimaryImageURL'));
+       this.activeCard.image = this.g[this.context]['term:hasPrimaryImageURL']!=null?this.g[this.context]['term:hasPrimaryImageURL'][0].value:"";
+       this.activeCard.context = this.context;
+       this.cardEdit = true;
+    }
+    saveCard(){
+       this.g[this.context]['term:prefLabel'][0].value = this.activeCard.title;
+       this.g[this.context]['term:hasDescription']=[{datatype:"termType:_HTML",value:this.activeCard.body,type:"literal"}];
+       this.g[this.context]['term:hasPrimaryImageURL'] = [{datatype:"termType:_Image",value:this.activeCard.image,type:"literal"}];
+       this.activeCard.curie = this.context;
+       let path = `${this.server}/lib/saveCard.sjs`;  
+       console.log(path);
+/*       let options = {
+        headers: {'Content-Type': 'application/json'},
+        body:JSON.stringify(this.activeCard),
+        method:"post"};*/
+//        path += `?json=${JSON.stringify(this.activeCard).replace(/\#/g,"%%%")}`;
+//        console.log(this.activeCard);
+        window.fetch(path,{body:JSON.stringify(this.activeCard),method:"POST"})
+       .then((response)=>response.text())
+       .then((text)=>{
+          this.pinPage(true,"card");
+//          this.fetchContext(context,"card")
+//            console.log(text);
+        })
+       .catch((e)=>console.log(e));
+       this.cardEdit = false;
+    }
+    filterBody(content,filters=['box']){
+      let input = content||"";
+      if (input === ""){return ""}
+      //console.log(`content = ${input}`);
+      filters.forEach((filter)=>{
+      switch(filter){
+        case "box": input = this.boxFilter(input);return input;break;
+        case "lists": input = this.listsFilter(input);return input;break;
+        default: input;
+      }
+    })
+    return input
+  }
+  boxFilter(input){
+    input = input.replace(/\[(.*?)\|(.*?)\]/g,`<a href="?context=$1">$2</a>`);
+    input = input.replace(/\*/g,`<li>`); // Replaces *s with list items. Doesn't handle inline * case well
+    return input;
+  }
+  iso2Date(isoDate){
+    let date = new Date(isoDate);
+    return date.toLocaleDateString("en-us",{ year: 'numeric', month: '2-digit', day: '2-digit' });
+  }
+  deleteItem(index,arr){
+    arr.splice(index,1)
+  }
+  editCardProperties(){
+    console.log(this.g[this.context]);
+    this.cardEdit=true;
+    Object.keys(this.g[this.context]).forEach((predicate)=>{
+      if (!Array.isArray(this.g[this.context][predicate])){this.g[this.context][predicate]=[]};
+      this.g[this.context][predicate].forEach((object)=>{
+        if (object.type === "uri"){
+          console.log(object.value,this.g.hasOwnProperty(object.value));
+          if (this.g.hasOwnProperty(object.value)){
+            if (this.g[object.value]!=null){
+              object.label = this.g[object.value]['term:prefLabel'][0].value;
+              object.defaultValue = object.value;
+              object.defaultLabel = object.label;
+            }
+          }
+        }
+      })
+    })
+  }
+  saveCardProperties(){
+    this.cardEdit = false;
+    let context = this.context;
+    let buffer = [];
+    let update = Object.keys(this.g[context]).forEach((predicate)=>{
+      this.g[context][predicate].forEach((object)=>{
+        if (object.type==='uri'){
+          buffer.push(`${context} ${predicate} ${object.value}.`)
+        }
+        else {
+          buffer.push(`${context} ${predicate} """${object.value}"""^^${object.datatype||'xsd:string'}.`)
+        }
+      })
+    })
+    let triples = buffer.join('\n');
+    let prolog = Object.keys(this.ns).map((prefix)=>`prefix ${prefix}: <${this.ns[prefix]}>`).join('\n');
+    let output = `${prolog}
+with graph:_data
+delete {${context} ?p ?o}
+insert {
+  ${triples}
+}
+where {
+  ${context} ?p ?o
+}`;
+  let newRecord = {"@context":this.namespace,"graph":this.g,subject:context};
+  let path = `${this.server}/lib/updateProperties.sjs`;
+  window.fetch(path,{method:"POST",body:JSON.stringify(newRecord,null,4)})
+       .then((response)=>response.text())
+       .then((text)=>{
+          this.pageIndex = this.pageIndex+1;
+          //location.href=`/?context=${context}&index=${this.pageIndex}#properties`;
+          this.pinPage(true,"properties");
+          console.log(text);
+        })
+       .catch((e)=>console.log(e));
+  }
+
+  revertCard(){
+      this.pinPage(true,"card");
+      console.log("revertCard() called");
+  }
+
+  getLinkOptions(property){
+    if (this.linkPropertyList.hasOwnProperty(property)){
+        return this.linkPropertyList[property].values||[];
+      }
+    else {
+        return []
+    }
+  }
+  updateLinkEntry(item,property){
+    if (this.linkPropertyList.hasOwnProperty(property)){
+      let link = this.linkPropertyList[property].values.find((link)=>link.value === item.label);
+      if (link){
+        item.value = link.context;
+      }
+      else {
+        let action = confirm("Do you wish this to be a new Entry?");
+        if (action){
+          item.value = item.value.replace(/^(\w+):(\w+)/,`$1:_${this.tokenize(item.label)}`);
+          let prolog = Object.keys(this.ns).map((prefix)=>`prefix ${prefix}: <${this.ns[prefix]}>`).join('\n');
+          let update = `${prolog}
+  insert data {
+    graph graph:_data {
+    ${item.value}
+        a ${this.linkPropertyList[property].type};
+        term:prefLabel "${item.label}"^^xsd:string;
+        .
+    }
+  }`;
+        console.log(update);
+        console.log("ToDo: Complete the update of the new entry.")
+        let path = `${this.server}/lib/updateProperties.sjs?update=${encodeURI(update.replace(/(#)/g,"%%%"))}`;
+        window.fetch(path)
+             .then((response)=>response.text())
+             .then((text)=>{
+                this.pinPage(true);
+                console.log(text);
+              })
+             .catch((e)=>console.log(e));
+        }
+        else {
+          this.revertItem(item);
+        }
+      }
+    }
+  }
+  revertItem(item){
+    item.value = item.defaultValue;
+    item.label = item.defaultLabel;
+  }
+
+  login(){
+    this.loginData.action="login";
+    this.loginModal.open();
+  }
+
+  logout(){
+    this.loginData.password = "";
+    this.loginData.status = false;
+    this.loginData.action = "logout";
+    let path = `${this.server}/lib/access.sjs`;
+    let params = {method:"POST",body:JSON.stringify(this.loginData)};
+    //console.log(params);
+    window.fetch(path,params)
+      .then((response)=>response.json())
+      .then((json)=>{
+        console.log(json);
+          this.loginData  = json;
+          this.userRole = new Set(this.loginData.permissions);
+          AureliaCookie.delete("login");
+          this.cache = "cached";
+      })
+      .catch((e)=>console.log(e));
+  }
+
+
+  processLogin(){
+    let path = `${this.server}/lib/access.sjs`;
+    let params = {method:"POST",body:JSON.stringify(this.loginData)};
+    //console.log(params);
+    window.fetch(path,params)
+      .then((response)=>response.json())
+      .then((json)=>{
+        console.log(json);
+          this.loginData  = json;
+          this.userRole = new Set(this.loginData.permissions);
+          if (!this.loginData.status){alert("Log-in failed.")}
+          else {
+            AureliaCookie.set("login",JSON.stringify(this.loginData),{expiry:1,path:'',domain:'',secure:false})
+          }
+      })
+      .catch((e)=>console.log(e));
+  }
+
+
+
+  newCard(ctx){
+    let context = ctx||this.context;
+    this.context = context;
+    this.activeCard = Object.assign(this.defaultCard,{});
+//    this.activeCard.domain = context;
+    this.activeCard.image = Array.isArray(this.g[context]['term:hasPrimaryImageURL'])?this.g[context]['term:hasPrimaryImageURL'][0].value:"";
+    if (context === 'class:_Property'){
+      this.activeCard.nodeKind = '';
+      this.activeCard.range = '';
+      this.activeCard.datatype = '';
+      this.activeCard.cardinality = '';
+    }
+    this.generateEntityId(context);
+    this.newModal.open();
+  }
+
+  duplicateCard(){
+    this.revertCard = Object.assign(this.activeCard,{});
+    this.activeCard = {
+      title:`${this.g[this.context]['term:prefLabel'][0].value} Copy`,
+      body:this.g[this.context].hasOwnProperty('term:hasDescription')?this.g[this.context]['term:hasDescription'][0].value:' ',
+      image:this.g[this.context].hasOwnProperty('term:hasPrimaryImageURL')&&Array.isArray(this.g[this.context]['term:hasPrimaryImageURL'])?this.g[this.context]['term:hasPrimaryImageURL'][0].value:' ',
+      curie:`${this.context}_Copy`};
+    this.duplicateModal.open();
+  }
+  deleteCard(){
+    let cardType = this.g[this.context]['rdf:type'][0].value;
+    let typeLabel = this.g[cardType]['term:prefLabel'][0].value;
+     if (confirm(`Are you sure you wish to delete this ${typeLabel.toLowerCase()}?`)){
+          //console.log(`Delete card ${cardType}`);
+          let path = `${this.server}/lib/deleteCard.sjs?context=${this.context}`;
+          window.fetch(path)
+            .then((response)=>response.text())
+            .then((text)=>{
+              console.log(text);
+              location.href =  `${this.client}?context=${cardType}&cache=replace`
+            })
+            .catch((err)=>console.log(err));
+     }  
+  }
+  processNewCard(){
+    console.log("processing card");
+    let prolog = Object.keys(this.ns).map((prefix)=>`prefix ${prefix}: <${this.ns[prefix]}>`).join('\n');
+    this.activeCard.type = this.context;
+/*    let update = `${prolog}
+  insert data {
+    graph graph:_data {
+    ${this.activeCard.curie}
+        a ${this.activeCard.type};
+        term:prefLabel """${this.summaryFilter(this.activeCard.title)}"""^^xsd:string;
+        term:hasDescription """${this.activeCard.body}"""^^termType:_HTML;
+        term:hasPrimaryImageURL "${this.activeCard.image}"^^termType:_Image;
+${this.type === 'class:_Class'?`
+        class:hasPrefix "${this.activeCard.prefix}"^^xsd:string;
+        class:hasNamespace "${this.activeCard.namespace}"^^xsd:anyURI;
+        class:hasPlural "${this.activeCard.plural}"^^xsd:string;
+`:''}
+${this.type === 'class:_Property'?`
+        property:hasDomain ${this.activeCard.domain};
+        property:hasNodeKind ${this.activeCard.nodeKind};
+        property:hasCardinality ${this.activeCard.cardinality};
+        ${this.activeCard.nodeKind === "nodeKind:_Literal"?
+          `property:hasDatatype ${this.activeCard.datatype};`:
+          `property:hasRange ${this.activeCard.range};`
+        }
+
+`:''}
+        .
+    }
+  }`;*/
+
+//        console.log(update);
+        console.log("ToDo: Complete the update of the new entry.");
+
+        if (this.activeCard.prefix != ''){
+           this.ns[this.activeCard.prefix] = this.activeCard.namespace;
+           let path = `${this.server}/lib/updateNamespaces.sjs?prefix=${this.activeCard.prefix}&namespace=${this.activeCard.namespace}&action=add`;
+           window.fetch(path)
+             .then((response)=>response.text())
+             .then((text)=>{
+                console.log(text);
+              })
+             .catch((e)=>console.log(e));
+          }
+        console.log(this.activeCard);
+        let path = `${this.server}/lib/newCard.sjs`;
+        window.fetch(path,{method:"POST",body:JSON.stringify(this.activeCard,null,4)})
+             .then((response)=>response.text())
+             .then((text)=>{
+                console.log(this.activeCard);
+                location.href =  `${this.client}?context=${this.activeCard.curie}&cache=refresh&mode=card`
+                //console.log(text);
+              })
+             .catch((e)=>console.log(e));
+  }
+
+  processDuplicateCard(){
+    console.log("processing duplicate card");
+    let ignorePredicates = new Set(['term:prefLabel','term:hasDescription','term:hasPrimaryImageURL','rdf:type']);
+    let prolog = Object.keys(this.ns).map((prefix)=>`prefix ${prefix}: <${this.ns[prefix]}>`).join('\n');
+    console.log(this.context,this.g[this.context]);
+    let triples = [];
+    var triple;
+    Object.keys(this.g[this.context]).forEach((predicate)=>{
+        if (!ignorePredicates.has(predicate)){
+        this.g[this.context][predicate].forEach((object)=>{
+          if (object.type === 'literal'){
+            triple = `${this.activeCard.curie} ${predicate} ${object.value}.`;
+          }
+          else {
+            triple = `${this.activeCard.curie} ${predicate} """${object.value}"""^^${object.datatype||'xsd:string'}.`;            
+          }
+          triples.push(triple);
+        })
+        }})
+    let update = `${prolog}
+  insert data {
+    graph graph:_data {
+    ${this.activeCard.curie}
+        a ${this.g[this.context]['rdf:type'][0].value};
+        term:prefLabel """${this.activeCard.title}"""^^xsd:string;
+        term:hasDescription """${this.activeCard.body}"""^^termType:_HTML;
+        term:hasPrimaryImageURL "${this.activeCard.image}"^^termType:_Image;
+        .
+    ${triples.join('\n')}
+    }
+}`;
+        console.log(update);
+        let path = `${this.server}/lib/updateProperties.sjs?update=${encodeURI(update.replace(/(#)/g,"%%%"))}`;
+        window.fetch(path)
+             .then((response)=>response.text())
+             .then((text)=>{
+//                location.href =  `${this.client}?context=${this.activeCard.curie}&cache=refresh`
+                console.log(text);
+              })
+             .catch((e)=>console.log(e));
+  }
+
+
+  generateEntityId(context){
+    console.log(`Generate Entity Id - ${context}`)
+    if  (context.startsWith('class:')){
+      let  prefix = this.tokenize(context.replace(/.*\:_(.+?)$/,"$1"),"camel");
+      if (context === 'class:_Class'){
+        let cleanTitle = this.summaryFilter(this.activeCard.title,128)
+        var id = this.tokenize(cleanTitle);
+        this.activeCard.curie =  `class:_${id}`;
+        var prefix = this.tokenize(cleanTitle,"camel");
+        this.activeCard.prefix = prefix;
+        this.activeCard.namespace = `${this.defaultNamespace}${prefix}/`;
+        this.activeCard.plural = `${this.activeCard.title}s`;
+      }
+      else if (context === 'class:_Property'){
+        let cleanTitle = this.summaryFilter(this.activeCard.title,128)
+        var id = this.tokenize(cleanTitle,"camel");
+        var domain = this.tokenize(this.activeCard.domain.replace(/.+?\:_/,''),'camel');
+
+        var prefix = domain;
+        this.activeCard.curie =  `${prefix}:${id}`;
+        
+      }      
+      else {
+        let cleanTitle = this.summaryFilter(this.activeCard.title,128)
+        var id = this.tokenize(cleanTitle);
+        this.activeCard.curie = `${prefix}:_${id}`;
+        this.activeCard.prefix = "";
+        this.activeCard.namespace = "";
+      }
+    }
+    else {
+      let cleanTitle = this.summaryFilter(this.activeCard.title,128)
+      let  prefix = context.replace(/(.*)\:_.+?$/,"$1");
+      var id = this.tokenize(cleanTitle);
+      this.activeCard.curie = `${prefix}:_${id}`;
+      this.activeCard.title = cleanTitle;
+    }
+  }
+  getTerms(property){
+    //console.log(property);
+    let path = `${this.server}/lib/terms.sjs?predicate=${property}`;
+    window.fetch(path)
+       .then((response)=>response.json())
+       .then((json)=>{
+//          console.log(json.results);
+          this.linkPropertyList = {};
+          this.linkPropertyList[property] = json.results;
+          //console.log(this.linkPropertyList[property]);
+       });
+    return [];
+  }
+  updateLink(context,property,item,event){
+    console.log("*** updateLink");
+    //console.log(item.value,event.srcElement.value);
+    let value = event.srcElement.value;
+    console.log(value);
+    if (value === "delete"){
+//       delete this.g[context][property].find((tempItem)=>tempItem.value === item.value);
+//       delete this.linkPropertyList[property].find((tempItem)=>event.srcElement.value === tempItem.context);
+//       delete event.srcElement;
+         item.deleted=true;
+      console.log("deletes called");
+    }
+    else {
+        let label = this.linkPropertyList[property].find((tempItem)=>event.srcElement.value === tempItem.context).value;
+        console.log(label);
+        let foundItem = this.g[context][property].find((tempItem)=>tempItem.value === item.value);
+        foundItem.value = value;
+        foundItem.label = label;
+        console.log(foundItem);
+        }
+    //item.value = event.srcElement.value;
+//    item.label = event.srcElement.label;
+
+  }
+  updateClassNamespace(){
+        this.activeCard.namespace = `${this.defaultNamespace}${this.activeCard.prefix}/`;
+
+  }
+  updateInstanceList(classContext,predicate='rdf:type'){
+    let path = `${this.server}/lib/getList.sjs?context=${classContext}&predicate=${predicate}`
+    window.fetch(path)
+       .then((response)=>response.json())
+       .then((json)=>{
+          //console.log(classContext);
+          //console.log(json);
+          //if (!this.instanceList.hasOwnProperty(classContext)){this.instanceList[classContext]={};}
+          this.instanceList[classContext]={};
+          this.instanceList[classContext][predicate]=json;
+       });    
+  }
+filterComplianceTest(){
+    let classContext = 'class:_ComplianceTest';
+    let predicate = 'rdf:type';
+    let path = `${this.server}/lib/getList.sjs?context=${classContext}&predicate=${predicate}`
+    let constraintObj = {constraints:[]};
+    if (this.complianceItem.country != ""){
+      constraintObj.constraints.push({predicate:'complianceTest:hasCountry',object:this.complianceItem.country});
+    }
+    if (this.complianceItem.industry != ""){
+      constraintObj.constraints.push({predicate:'complianceTest:hasIndustry',object:this.complianceItem.industry});
+    }
+    console.log("Entering Filter Compliance List");
+    console.log(constraintObj);
+    window.fetch(path,{method:"POST",body:JSON.stringify(constraintObj,null,4)})
+       .then((response)=>response.json())
+       .then((json)=>{
+          //console.log(json);
+          //if (!this.instanceList.hasOwnProperty(classContext)){this.instanceList[classContext]={};}
+          this.instanceList[classContext]={};
+          this.instanceList[classContext][predicate]=json;
+       });    
+  }
+
+  getDescription(context,object,predicate){
+      if (context === null || object === null || predicate === null){return ""}
+      let item = this.instanceList[object][predicate].find((item)=>item.curie === context);
+      if (item != null){return item.description}
+        else {return ""}
+      }
+
+
+  getInstanceList(classContext,predicate='rdf:type'){
+     if (this.instanceList.hasOwnProperty(classContext) && this.instanceList[classContext].hasOwnProperty(predicate)){
+      return this.instanceList
+     }
+     else {
+      return []
+     }
+  }
+
+  summaryFilter(content,len=500){
+    content = content?content:"";
+    content = content.replace(/<.+?>/g,' ').replace(/\s+/g,' ');
+    content = content.substr(0,len);
+    return content;
+  }
+
+  addProperty(){
+    //alert("Placeholder for add property.")
+    let contextType = this.g[this.context]['rdf:type'][0].value;
+    let path = `${this.server}/lib/properties.sjs?type=${contextType}&cache=refresh`;
+    console.log(path);
+    fetch(path)
+    .then((response)=>response.json())
+    .then((json)=>{
+      this.availableProperties = json.results;
+      this.addPropertyModal.open();
+
+    })
+    .catch((e)=>console.log(e))
+  }
+  activePropertySelected(event){
+    let predicate = event.target.value;
+    this.activeProperty = this.availableProperties.find((property)=>property.predicate === predicate);
+    if (this.activeProperty.nodeKind === 'nodeKind:_IRI'){
+    let path = `${this.server}/lib/getList.sjs?context=${this.activeProperty.range}&cache=refresh`;
+    fetch(path)
+    .then((response)=>response.json())
+    .then((json)=>{
+      this.activePropertyValues=json;
+
+    })
+    .catch((e)=>console.log(e))
+
+     }
+
+  }
+  processAddProperty(){
+    console.log(this.activeProperty);
+    if (this.activeProperty.nodeKind==='nodeKind:_IRI'){
+      if (!this.g[this.context].hasOwnProperty(this.activeProperty.predicate)){
+        this.g[this.context][this.activeProperty.predicate] = [];
+        }
+      this.g[this.context][this.activeProperty.predicate].push({'type':'uri',value:this.activeProperty.value});
+      this.saveCardProperties();
+      }
+    if (this.activeProperty.nodeKind==='nodeKind:_Literal'){
+      if (!this.g[this.context].hasOwnProperty(this.activeProperty.predicate)){
+        this.g[this.context][this.activeProperty.predicate] = [];
+        }
+      this.g[this.context][this.activeProperty.predicate].push({'type':'literal',value:this.activeProperty.value,datatype:this.activeProperty.datatype});
+      this.saveCardProperties();
+      }
+  }
+  addExistingPropertyValue(property){
+    let newObject = Object.assign({},this.g[this.context][property][0]);
+    newObject.value = "";
+    newObject.label = "";
+    this.g[this.context][property].push(newObject);
+
+  }
+
+  newConstraint(){
+    //alert("Placeholder for add property.")
+    let path = `${this.server}/lib/properties.sjs?type=${this.context}&cache=refresh`;
+    console.log(path);
+    fetch(path)
+    .then((response)=>response.json())
+    .then((json)=>{
+      this.availableProperties = json.results;
+      this.activeConstraint.predicate = "";
+      this.activeConstraint.object = "";
+      this.addConstraintModal.open();
+    })
+    .catch((e)=>console.log(e))
+    }
+
+  processAddConstraint(){
+//    console.log(this.activeProperty);
+    let constraint = Object.create(this.activeProperty);
+    if (constraint.nodeKind === "nodeKind:_IRI"){
+      let propertyValue = this.activePropertyValues.find((activePropertyValue)=>activePropertyValue.curie === constraint.value).label;
+      constraint.objectLabel = propertyValue;
+    }
+    this.constraints.push(constraint);
+/*    if (this.activeProperty.nodeKind==='nodeKind:_IRI'){
+      if (!this.g[this.context].hasOwnProperty(this.activeProperty.predicate)){
+        this.g[this.context][this.activeProperty.predicate] = [];
+        }
+      this.g[this.context][this.activeProperty.predicate].push({'type':'uri',value:this.activeProperty.value});
+      this.saveCardProperties();
+      }
+    if (this.activeProperty.nodeKind==='nodeKind:_Literal'){
+      if (!this.g[this.context].hasOwnProperty(this.activeProperty.predicate)){
+        this.g[this.context][this.activeProperty.predicate] = [];
+        }
+      this.g[this.context][this.activeProperty.predicate].push({'type':'literal',value:this.activeProperty.value,datatype:this.activeProperty.datatype});
+      this.saveCardProperties();*/
+      
+  }
+
+
+  formatDoc(action,params={},gui=false){
+    let editor = document.querySelector('.bodyEditor');
+    document.execCommand(action,gui,params); editor.focus();
+  }
+  createHyperlink(){
+    var sLnk=prompt('Write the URL here','http://');
+    if(sLnk&&sLnk!=''&&sLnk!='http://'){
+       let editor = document.querySelector('.bodyEditor');
+       let selection = window.getSelection();
+       let text = selection.toString();
+       let link = `<a href="${sLnk}" target="_blank">${text}</a>`;
+       this.formatDoc('insertHTML',link)}
+  }
+  setForeColor(evt){
+    console.log(evt);
+    this.formatDoc('foreColor',evt.srcElement.value);
+  }
+  setBackColor(evt){
+    console.log(evt);
+    this.formatDoc('backColor',evt.srcElement.value);
+  }
+
+  setHeading(evt){
+    this.formatDoc('formatBlock',evt.srcElement.value);
+    evt.srcElement.value="";
+  }
+  imageEdit(){
+//    this.editImageModal.open();
+      let selection = document.getSelection();
+      let imageNode = selection.anchorNode.querySelector("IMG");
+      if (imageNode){
+        this.editImage = {
+          src:imageNode.getAttribute('src'),
+          width:imageNode.getAttribute('width'),
+          height:imageNode.getAttribute('height'),
+          alt:imageNode.getAttribute('alt')||"",
+          title:imageNode.getAttribute('title')||"",
+          align:imageNode.getAttribute('align')||""
+        }
+      }
+      document.execCommand("insertHTML",false,"%^%");
+      //this.editImageModal = document.querySelector('.editImageModal');
+      console.log("Enter imageEdit");
+      this.editImageModal.open();
+      console.log("Leave imageEdit");
+//      let url = prompt("Image URL");
+//      this.processEditImage(url);
+  }
+
+  processEditImage(){
+    console.log("Entering processEditImage");
+    //this.editImageModal.close();
+    let img = `<img src="${this.editImage.src}" width="${this.editImage.width}" height="${this.editImage.height}"
+    alt="${this.editImage.alt}" title="${this.editImage.title}" style="${this.editImage.align}"/>`;
+    console.log(img);
+    let editor = document.querySelector('.bodyEditor');
+    editor.focus();
+    //document.execCommand("insertHTML",false,img);
+    let html = editor.innerHTML;
+    editor.innerHTML = html.replace("%^%",img)
+
+    //editor.focus();
+    console.log("Leaving processEditImage");
+  }
+  cancelEditImage(){
+    this.editImageModal.cancel();
+    let editor = document.querySelector('.bodyEditor');
+    //document.execCommand("insertHTML",false,img);
+    let html = editor.innerHTML;
+    editor.innerHTML = html.replace("%^%","")
+
+  }
+  hasContent(context,property){
+    //console.log(context,property);
+    return (property === 'link')?true:!this.g[context][property][0].value.match(/\:_$/)
+  }
+}
+

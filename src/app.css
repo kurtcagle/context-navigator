@@ -144,6 +144,7 @@ body  {
 	color:white;
 }
 
+
 .centerPane {
 	display:flex;
 	flex-direction:column;
@@ -157,6 +158,7 @@ body  {
 	min-width:1024px;
 }
 
+
 .leftPane .link {
 	color:yellow;
 
@@ -168,6 +170,16 @@ body  {
 /*	border:solid 1px blue;*/
 	background:var(--verticalGradient1);
 	margin:0;
+}
+
+@media only screen  and (max-width: 600px) {
+.leftPane {display:none;}
+.rightPane {display:none;}
+.centerPane {
+	min-width:0;
+	width:90%;
+}
+.mobile {display:none;}
 }
 
 
@@ -335,6 +347,7 @@ body  {
 	display:flex;
 	flex-direction: row;
 	justify-content:flex-start;
+	flex-wrap: wrap;
 	border-bottom:solid 3px var(--contextBorderColor);
 	margin-bottom:10pt;
 }
@@ -373,8 +386,11 @@ body  {
 
 }
 .graph {
-	width:1024px;
-	height:1024px;
+	width:90%;
+	height:90%;
+	max-width:1024px;
+	max-height:1024px;
+	min-height:700px;
 /*	max-height:600px;*/
 	min-height:1fr;
 	resize: both;
@@ -566,6 +582,8 @@ table td.inlineLabel {
  .classSelector {
  	font-size:12pt;
  	height:26pt;
+ 	border:none;
+ 	font-weight:bold;
  }
  .bannerText {
  	font-size:14pt;
@@ -586,7 +604,7 @@ table td.inlineLabel {
 	border:inset 3px gray;
 	background-color:lightGray;
 	padding:2px;
-	width:720px;
+	max-width:720px;
 }
 
 .paneContainer {
@@ -704,9 +722,11 @@ table td.inlineLabel {
 }
 .backLinks {
 	display:block;
-	width:500px;
+	width:100%;
+	max-width:500px;
 	padding:20pt;
 	border:solid 2px var(--contextBorderColor);
+	margin:10pt;
 }
 .backLinks .title {
 	margin:-12pt;
@@ -716,5 +736,14 @@ table td.inlineLabel {
 .itemCount {
 	border-bottom: solid 2px  var(--contextBorderColor);
 	padding:5pt;
+	margin-bottom:10pt;
+}
+.predicateTabs select {
+	font-size:16pt;
+	font-weight:bold;
+	font-style:italic;
+	padding-bottom:5pt;
 	margin-bottom:5pt;
+	border-bottom: solid 1px var(--contextBorderColor);
+
 }

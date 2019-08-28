@@ -5,18 +5,21 @@ export class App {
   constructor() {
     //this.userRole = new Set([]);
     window.app = this;
+    this.oldConfiguration = "";
     this.theme = "blue";
   	this.params = this.getQueryParams()||{};
     this.defaultPage = "publisher:_CognitiveWorld";
-    this.defaultImage = "http://cognitiveworlds.com/lib/getImage.sjs?path=/images/publisher/_CognitiveWorld.jpeg";
+    this.defaultIcon = "http://cognitiveworlds.com/lib/getImage.sjs?path=/images/publisher/_CognitiveWorld.jpeg";
     this.defaultLabel = "Cognitive World";
-    this.context = this.params != null?this.params.context||this.defaultPage:this.defaultPage;
+    this.context = this.params.context||this.defaultPage;
+
     this.qRefine = this.params.qr||"";
     this.cache = this.params.cache||"cached";
     this.q  = this.params.q||"";
+    this.qGraph = "";
     this.searchData = {};
     this.history = [];
-    this.mode=this.params.mode||"images";
+    this.mode=this.params.mode||"list";
     this.showAdvancedListOptions = false;
     //this.sortMode = "createdDateDesc";
     this.sortMode = "sortMode:_ModifiedDateDesc";
@@ -38,7 +41,7 @@ export class App {
     this.loginData = cookieLogin?cookieLogin:{username:"",password:"",permissions:[],status:false,action:"login"};
     this.userRole = new Set(this.loginData.permissions);
     this.page = 1;
-    this.pageSize = 10;
+    this.pageSize = 20;
     this.itemCount = 0;
     this.totalPages = 1;
     this.wait = false;
@@ -63,8 +66,11 @@ export class App {
     this.availableProperties = [];
     this.pageIndex =0;
     this.activeProperty = {};
+    this.currentPath = "";
     this.selectedProperty = null;
     this.activePropertyValues = [];
+    this.activePredicates = [];
+    this.availableTemplates = [];
     var hash = window.location.hash.substr(1);
     this.hash = this.mode||hash||"card";
     console.log(this.hash)
@@ -91,7 +97,7 @@ export class App {
     ];
     this.selectedAction="selectAction";
     this.defaultCard = {title:"New Card",body:"This is a new card.",image:"",curie:"foo:bar",prefix:"",ns:"",datatype:"",nodeKind:"",
-domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
+domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:""};
     this.defaultNamespace = "http://semantical.llc/ns/";
     this.activeCard = Object.assign(this.defaultCard,{});
     this.linkPropertyList = {};
@@ -100,7 +106,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
 //    this.server = "";
 //    this.client = this.server
     setTimeout(()=>{
-        this.fetchContext(this.context,this.mode)
+        this.updateConfiguration();
         this.updateInstanceList('class:_Class');
         this.updateInstanceList('class:_Property');
         this.updateInstanceList('class:_Cardinality');
@@ -120,7 +126,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
     this.globalActions.find((action)=>(action.id === this.selectedAction)).action();
   }
 
-  fetchContext(context,hash="list",qRefine="",noPush=false,cacheState = "cached"){
+  fetchContext(context,hash="list",options = {qRefine:'',noPush:false,}){
     var body = this.constraints;
   	var options = {method: 'POST',
                body: JSON.stringify(body,null,4),
@@ -137,13 +143,13 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
   			this.ns = json["@context"];
   			this.g = json["graph"];
   			this.report = this.g["report:_"]
-  			if (!noPush){this.history.push(this.context);}
+  			if (!options.noPush){this.history.push(this.context);}
   			this.context = this.report['report:hasContext'][0].value;
-        if (this.g[this.context]['rdf:type'][0].value != 'class:_Class'){
+/*        if (this.g[this.context]['rdf:type'][0].value != 'class:_Class'){
           if (this.g[this.context].hasOwnProperty('rdfs:subClassOf')){
             delete this.g[this.context]['rdfs:subClassOf'];
           }
-        }
+        }*/
   			this.namespace = this.ciri(context);
 //  			this.predicates = this.report['report:hasPredicate']?this.report['report:hasPredicate'].map((predicate)=>predicate.value):[];
         this.predicates = [];
@@ -166,8 +172,15 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
         this.page = 1;
   			this.sort();
         let tabIndex = this.predicates.map((predicate)=>predicate.curie).includes('rdf:type')?this.predicates.map((predicate)=>predicate.curie).indexOf('rdf:type'):0;
-  			this.activateTab(this.predicates.map((predicate)=>predicate.curie)[tabIndex],true,true);
-  			this.qRefine = qRefine;
+  			//this.activeLinkPredicate = predicate;
+        //this.activateTab(this.predicates.map((predicate)=>predicate.curie)[tabIndex],true,true);
+        console.log(tabIndex);
+        console.log(this.predicates);
+        this.activePredicates = this.filterListPredicates(this.predicates);
+        let predicate = this.activePredicates.length>0?tabIndex?this.activePredicates[tabIndex].curie:this.activePredicates[0].curie:'rdf:type';
+        //this.activeLinkPredicate = predicate;
+        this.activateTab(predicate,true,options);
+  			this.qRefine = options.qRefine||"";
   			this.q = "";
         this.reversed = false;
         this.wait = false;
@@ -191,7 +204,8 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:""};
   }
 
   filterListPredicates(predicates){
-    return predicates != null?predicates.filter((predicate)=>!(['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange','term:hasPublishingStatus','term:hasSourceTerm'].includes(predicate.curie))):[];
+    let termList = ['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange','term:hasPublishingStatus','term:hasSourceTerm'];
+    return predicates != null?predicates.filter((predicate)=>!(termList.includes(predicate.curie))):[];
   }
 
   fetchSearch(){
@@ -262,8 +276,9 @@ inputSearch(){
   	//console.log(this.contextData['@context'])
   	return `${this.contextData['@context'][prefix]}${local}`;
   }
-  activateTab(predicate = 'rdf:type',resetPage = true,resetMode = false){
+  activateTab(predicate = 'rdf:type',resetPage=true,noPush=false,options={}){
   	//console.log(this.qRefine);
+    if (options.predicate != null){predicate = options.predicate}
   	this.activeLinkPredicate = predicate;
 /*    console.log(this.activeLinkPredicate);
   	var regexes = this.qRefine.split(/\s+/).map((token)=>(token != '')?new RegExp(token,'i'):null).filter((regex)=>regex != null);
@@ -291,7 +306,12 @@ inputSearch(){
     } */
     // New code for retrieving lists
     let path = `${this.server}/lib/links.sjs?context=${this.context}&predicate=${predicate}&q=${this.qRefine}&page=${this.page}`;
-    path += `&pageSize=${this.pageSize}&sort=${this.sortMode}`;
+    path += `&pageSize=${this.pageSize}&sort=${options.sortMode||this.sortMode}`;
+    if (this.constraints.length>0){
+      let constraintString = this.constraints.map((constraint)=>`${constraint.predicate}|${constraint.value}`).join(';');
+      path += `&constraints=${constraintString}`;
+    }
+    this.currentPath = path;
     window.fetch(path)
     .then((response)=>response.json())
     .then((json)=>{
@@ -479,10 +499,6 @@ inputSearch(){
         }}
       return wrappedArray;
   	}
-    titleCase(str){
-      var tokens = str.split(/\s+/);
-      return tokens.map((token)=>`${token.substr(0,1).toUpperCase()}${token.substr(1)}`).join(' ');
-    }
 
     tokenize(str,tokenCase = "title"){
       var tokens = str.split(/\s+/);
@@ -798,6 +814,7 @@ where {
     this.activeCard.title = "";
     this.activeCard.body = "";
     this.activeCard.externalURL = "";
+    this.activeCard.template = "";
 //    this.activeCard.domain = context;
     this.activeCard.image = this.g.hasOwnProperty(context)?Array.isArray(this.g[context]['term:hasPrimaryImageURL'])?this.g[context]['term:hasPrimaryImageURL'][0].value:"":"";
     this.activeCard.image = this.activeCardImage||"";
@@ -817,6 +834,13 @@ where {
       this.activeCard.cardinality = 'cardinality:_ZeroOrMore';
  
     }
+    let path = `${this.server}/lib/links.sjs?context=class:_Template&constraints=template:hasTarget|${context}`
+    window.fetch(path)
+      .then((response)=>response.json())
+      .then((json)=>{
+        this.availableTemplates = json.data;
+      })
+      .catch((e)=>console.log(e));
     this.generateEntityId(this.context);
     this.newModal.open();
   }
@@ -1163,7 +1187,7 @@ filterComplianceTest(){
     }
 
   processAddConstraint(){
-//    console.log(this.activeProperty);
+    console.log(this.activeProperty);
     let constraint = Object.assign({},this.activeProperty);
     if (constraint.nodeKind === "nodeKind:_IRI"){
       let propertyValue = this.activePropertyValues.find((activePropertyValue)=>activePropertyValue.curie === constraint.value).label;
@@ -1315,6 +1339,16 @@ filterComplianceTest(){
      editor.focus();
      document.execCommand('insertHTML',false,'<pre class="codeBlock"># Insert Code Here</pre>');
  }
+
+ insertVideo(){
+    let videoEmbed = window.prompt("Enter video Embed Code");
+    videoEmbed = videoEmbed.replace(/width=".*?"/,`width="640"`).replace(/height=".*?"/,`height="480"`);
+     let editor = document.querySelector('.bodyEditor');
+     editor.focus();
+     document.execCommand('insertHTML',false,videoEmbed);
+ }
+
+
 
   hasContent(context,property){
     //console.log(context,property);
@@ -1566,10 +1600,60 @@ refreshBlocks(){
   summary(body){
     if (body!= null){
         let text = body.replace(/<.+?>/g,'');
-        text = text.substr(0,600);
+        text = text.substr(0,300);
         return text.replace(/^(.*)\..*/,'$1 ...');
       }
     else {return ""}
+  }
+setBodyToTemplate(){
+  let templateCurie = this.activeCard.template;
+  if (templateCurie != ""){
+    this.activeCard.body = this.availableTemplates.find((template)=>template.link === templateCurie).description;
+    }
+    else {
+      this.activeCard.body = "";
+    }
+  }
+  updateConfiguration(){
+    let path = `${this.server}/lib/server.sjs?context=class:_Configuration`;
+    window.fetch(path)
+    .then((response)=>response.json())
+    .then((json)=>{
+      let graph = json.graph;
+      if (graph.hasOwnProperty('class:_Configuration')){
+//        console.log("graph",graph);
+        if (graph["class:_Configuration"].hasOwnProperty('class:hasActiveConfiguration')){
+          let configuration = graph['class:_Configuration']['class:hasActiveConfiguration'][0].value;
+          if (configuration != this.oldConfiguration){
+          this.oldConfiguration = configuration;
+          let path = `${this.server}/lib/server.sjs?context=${configuration}`;
+          window.fetch(path)
+          .then((response)=>response.json())
+          .then((json)=>{
+            let graph = json.graph;
+            this.theme = graph[configuration].hasOwnProperty('configuration:hasTheme')?graph[configuration]['configuration:hasTheme'][0].value:"";
+            this.defaultLabel = graph[configuration].hasOwnProperty('configuration:hasSiteName')?graph[configuration]['configuration:hasSiteName'][0].value:"";
+            this.defaultIcon = graph[configuration].hasOwnProperty('configuration:hasIcon')?graph[configuration]['configuration:hasIcon'][0].value:"";
+            this.defaultPage =  graph[configuration].hasOwnProperty('configuration:hasHomePage')?graph[configuration]['configuration:hasHomePage'][0].value:"page:_Home";
+            let mode = graph[configuration].hasOwnProperty('configuration:hasMode')?graph[configuration]['configuration:hasMode'][0].value:"list";
+            this.mode=this.params.mode||mode;
+            this.context = this.params != null?this.params.context||this.defaultPage:this.defaultPage;
+
+            this.fetchContext(this.context,this.mode)
+          })
+          .catch((e)=>console.log(e))
+          }}
+        }
+
+    })
+    .catch((e)=>console.log(e))
+  }
+  titleCase(expr){
+    return expr.replace(/(^|\W)(\w)/g,(text)=>(text).toUpperCase())
+  }
+  graphToContext(){
+    window.gvis.loadSelectedContext();
+    this.fetchContext(window.gvis.context,"list");
   }
 }
 

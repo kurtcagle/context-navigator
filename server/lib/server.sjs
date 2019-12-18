@@ -4,6 +4,12 @@ var NS = require("ns");
 var ns = new NS();
 xdmp.addResponseHeader("Access-Control-Allow-Origin", "*");
 var context = xdmp.getRequestField("context","");
+let uid = xdmp.getRequestField("uid",'');
+let address = xdmp.getRequestClientAddress();
+let obj = {address:address,context:context,timestamp:(new Date()).toISOString(),id:sem.uuidString(),user:uid};
+let path = `/tracking/${obj.id}.json`;
+xdmp.documentInsert(path,obj);
+
 let constraintsJSON = xdmp.getRequestBody("json");
 let constraints = (constraintsJSON != '')&&(constraintsJSON != null)?JSON.parse(constraintsJSON):[];
 var cachePath = `/cache/${context.replace(/:/,"/")}.json`;
@@ -59,6 +65,7 @@ construct {
     ?node report:hasPredicateLabel ?pLabel.
     ?node report:hasPredicateDomain ?pDomain.
     ?node report:hasPredicateDomainLabel ?pDomainLabel.
+    ?node report:hasPredicateDomainPluralLabel ?typePluralLabel.
     ?node report:hasPredicateRange ?pRange.
     ?node report:hasPredicateRangeLabel ?pRangeLabel.
 ##    ?link ?pLink ?oLink.
@@ -257,7 +264,7 @@ construct {
         ?link term:hasSearchable ?optionStr.
     }    
     optional {
-        ?linkType class:hasPlural ?typePluralLabel.
+        ?linkType class:hasPluralName ?typePluralLabel.
 
     }
     optional {
@@ -276,7 +283,9 @@ var inboundTriples = sem.sparql(sparqlIn,{context:ns.ciri(context)})
 var triples = Array.from(outboundTriples).concat(Array.from(inboundTriples))
 //var triples = Array.from(outboundTriples);
 var json = ns.jsonCondense(triples);
+json.uid = uid;
 xdmp.documentInsert(cachePath,json);
-json
+xdmp.addResponseHeader("Content-Encoding","gzip")
+xdmp.gzip(json)
 //ns.convertToTurtle(triples)
 }

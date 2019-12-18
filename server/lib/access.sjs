@@ -16,6 +16,7 @@ if (request.action === "login"){
         delete request.password;
         request.status = true;
         request.action = login;
+        request.uid = xdmp.sha1(request.username);
     }
     else {
         request = {username:"",permissions:[],status:false,isValid:isValid,action:logout};

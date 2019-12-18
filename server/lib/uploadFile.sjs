@@ -7,11 +7,9 @@ xdmp.addResponseHeader("Access-Control-Allow-Origin", "*");
 //let update = xdmp.getRequestField("update").replace(/%%%/g,'#');
 //sem.sparqlUpdate(update);
 let updateJSON = xdmp.getRequestBody("json");
-let image = JSON.parse(updateJSON);
-//let filepath = `/images/${image.id.split(/:/).join('/')}.${image.filename}`;
+let fileObj = JSON.parse(updateJSON);
 let date = (new Date()).toISOString().replace(/:/g,'_').substr(0,19);
-let filepath = `/images/${date}/${image.filename}`
-
+let filepath = `/files/${date}/${fileObj.filename}`
 let xquery = `
 declare namespace temp = "http://semantical.llc/ns/temp/";
 declare variable $temp:base64 external;
@@ -23,6 +21,5 @@ return (
     $binary
     )
   )`;
-xdmp.xqueryEval(xquery,{"{http://semantical.llc/ns/temp/}base64":image.imageData,"{http://semantical.llc/ns/temp/}path":filepath})
+xdmp.xqueryEval(xquery,{"{http://semantical.llc/ns/temp/}base64":fileObj.fileData,"{http://semantical.llc/ns/temp/}path":filepath})
 JSON.stringify({filepath:filepath},null,4)
-

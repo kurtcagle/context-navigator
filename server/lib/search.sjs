@@ -10,7 +10,7 @@ var cachePath = `/cache/${context.replace(/:/,"/")}.json`;
 var cache = xdmp.getRequestField("cache","cached");
 //if (cache === "cached"){}
 let query = `${ns.sparql()}
-select distinct ?s ?prefLabel ?sType ?sTypeLabel ?imageURL where {
+select distinct ?s ?prefLabel ?sTypeLabel ?imageURL where {
     {{
     ?s term:prefLabel|term:hasSymbol|term:hasCode ?prefLabel.
     bind(lcase(?prefLabel) as ?search)
@@ -29,21 +29,26 @@ select distinct ?s ?prefLabel ?sType ?sTypeLabel ?imageURL where {
     ?s term:prefLabel ?prefLabel.
     ?s term:hasSearchable ?searchable.
     bind(lcase(?searchable) as ?search)
-    bind(0.5 as ?baseRank3)
+    bind(0.6 as ?baseRank3)
+    filter(${qTerms.map((qTerm)=>`contains(?search,"${qTerm}")`).join(' && ')})
+    }
+    UNION
+    {
+    ?s term:prefLabel ?prefLabel.
+    ?s term:hasDescription ?descr.
+    bind(lcase(?descr) as ?search)
+    bind(0.5 as ?baseRank4)
     filter(${qTerms.map((qTerm)=>`contains(?search,"${qTerm}")`).join(' && ')})
     }
     }
-    
     bind(strlen(?search) as ?searchLength)
     ?s a ?sType.
-    optional {
     ?sType term:prefLabel ?sTypeLabel.
-    }
     optional {
         ?s term:hasPrimaryImageURL ?imageURL.
     }
     ${context != ''?`{{?s ?p ${context}.} UNION {${context} ?p ?s}}`:''}
-    bind(coalesce(?baseRank1,?baseRank2,?baseRank3,0) as ?rank)
+    bind(coalesce(?baseRank1,?baseRank2,?baseRank3,?baseRank4,0) as ?rank)
 } order by desc(?rank) ?searchLength limit 50
 `
 let results = ns.cure(Array.from(sem.sparql(query)));

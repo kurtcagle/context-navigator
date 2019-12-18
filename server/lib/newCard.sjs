@@ -29,8 +29,12 @@ ${activeCard.curie}
       term:hasCreatedDate "${createdDate}"^^xsd:dateTime;
       term:hasLastModifiedDate "${createdDate}"^^xsd:dateTime;
       term:hasPublicationStatus publicationStatus:_Draft;
-      rdfs:subClassOf class:Term;
-      ${(activeCard.type === 'class:_Property')?`
+     ${activeCard.target != ''?`${activeCard.activePredicate} ${activeCard.target};`:''}
+     ${(activeCard.type === 'class:_Class')?`rdfs:subClassOf class:_Term;`:''}      
+     ${(activeCard.type === 'class:_Class')?`class:hasPrefix "${activeCard.prefix}"^^xsd:string;`:''}      
+     ${(activeCard.type === 'class:_Class')?`class:hasNamespace "${activeCard.namespace}"^^xsd:string;`:''}      
+     ${(activeCard.type === 'class:_Class')?`class:hasPluralName "${activeCard.plural}"^^xsd:string;`:''}      
+     ${(activeCard.type === 'class:_Property')?`
         rdfs:domain ${activeCard.domain};
         property:hasDomain  ${activeCard.domain};
         property:hasNodeKind ${activeCard.nodeKind};

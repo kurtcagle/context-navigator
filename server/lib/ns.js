@@ -123,7 +123,7 @@ class NS {
   // converts triples into properly prefixed turtle format by invoking rewrite() on triple serialization to MarkLogic turtle.       
  convertToTurtle(triples){
      let turtle = sem.rdfSerialize(triples,"turtle");
-     return this.rewrite(turtle);
+     return turtle // this.rewrite(turtle);
  }
       
   // Creates a condensed JSON structure where full namespaces are replaced by prefixes, using the MarkLogic rdfjson format. VERY useful.       
@@ -264,7 +264,7 @@ write(filePath,data){
     
 writeToTtlFile(filepath,triples){
     try {
-    let turtle = this.convertToTurtle(triples);
+    let turtle = sem.rdfSerialize(triples,"turtle");
     const nb = new NodeBuilder();
     nb.addText(turtle);
     xdmp.documentInsert(filepath,nb.toNode());

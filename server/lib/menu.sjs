@@ -4,9 +4,7 @@ var NS = require("ns");
 var ns = new NS();
 xdmp.addResponseHeader("Access-Control-Allow-Origin", "*");
 var context = xdmp.getRequestField("context","");
-var predicate = xdmp.getRequestField("predicate","null");
-predicate = (predicate != "")?predicate:"null";
-//if (predicate === "null"){predicate="rdf:type"};
+var predicate = xdmp.getRequestField("predicate","rdf:type");
 var transitive = xdmp.getRequestField("transitive","");
 var q = fn.normalizeSpace(xdmp.getRequestField("q",""));
 var qList = q.split(/\s/)||[];
@@ -33,7 +31,7 @@ let sortMode = (sortModeItem != null)?sortModeItem.filter:'desc(?lastModifiedDat
 let pageOffset = (page - 1) * pageSize;
 let body = `{
     ${predicate != 'null'?`bind(${predicate} as ?predicate)`:''}
-    ${predicate != 'null'?`?link ${predicate}${transitive === 'plus'?"+":transitive === 'star'?'*':''} ${context}.`:`?link ?predicate ${context}.`}
+    ?link ${predicate}${transitive === 'plus'?"+":transitive === 'star'?'*':''} ${context}.
     ?link term:prefLabel ?linkLabel1 .
     bind(fn:normalize-space(?linkLabel1) as ?linkLabel)
     ${constraintsArr.map((constraint)=>`?link ${constraint[0]} ${constraint[1]}.`).join('\n')}
@@ -64,17 +62,26 @@ let body = `{
     optional {
         ?predicate term:prefLabel ?predicateLabel.
     }
+    optional {
+        ?link ?predicate ?object.
+        optional {
+            ?object term:prefLabel ?objectLabel
+        }        
+    }
+    optional {
+        ?link menuItem:hasTargetCurie ?target
+    }
     
 #    optional {
 #        ?link rdf:type ?linkType.
 #    }
 
     bind(coalesce(?ordinal1,0) as ?ordinal)
-    ${qList.map((term)=>`filter(regex(?linkLabel,'${term}','i'))`).join('\n')}
+    ${qList.map((term)=>`filter(regex(?linkLabel,'${term}','i'))`).join('\n')} 
 }`
 var sparql = `${ns.sparql()}
 prefix fn: <http://www.w3.org/2005/xpath-functions#>
-select distinct ?link ?linkLabel ?predicate ?predicateLabel ?image ?lastModifiedDate ?createdDate ?description ?ordinal ?publicationStatus ?summary where  {
+select distinct ?link ?linkLabel ?predicate ?predicateLabel ?object ?objectLabel ?image ?lastModifiedDate ?createdDate ?description ?ordinal ?publicationStatus ?summary ?target where  {
 ${body}
 } order by ${sortMode} limit ${pageSize} offset ${pageOffset}`
 let nodes = sem.sparql(sparql);
@@ -90,6 +97,5 @@ let links = Array.from(ns.cure(nodes));
 
 let numPages = Math.ceil((count - 1) / pageSize);
 let results = {context:context,count:count,timestamp:(new Date()).toISOString(),page:page,pageSize:pageSize,numPages:numPages,data:links};
-xdmp.addResponseHeader("Content-Encoding","gzip")
-xdmp.gzip(results)
+results
 

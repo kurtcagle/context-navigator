@@ -5,22 +5,32 @@ export class App {
   constructor() {
     //this.userRole = new Set([]);
     window.app = this;
+    this.params = this.getQueryParams()||{};
     this.oldConfiguration = "";
     this.theme = "blue";
-  	this.params = this.getQueryParams()||{};
+    this.topBannerMessage = `<img src="http://cognitiveworlds.com/lib/getImage.sjs?path=/images/image/_TheCagleReportBanner.jpeg" class="topBannerImage"/>`;
     this.defaultPage = "publisher:_CognitiveWorld";
-    this.defaultIcon = "http://cognitiveworlds.com/lib/getImage.sjs?path=/images/publisher/_CognitiveWorld.jpeg";
-    this.defaultLabel = "Cognitive World";
+    this.defaultIcon = "/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg";
+    this.missingImage = "/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg";
+    this.defaultLabel = "GraCIE";
+    this.footer = `<div class="copyright">Copyright 2019 Semantical LLC.</div>`;
+    this.widgets = {output:['Loading ...']};
+    this.activeCSS = "";
     this.context = this.params.context||this.defaultPage;
-
+    this.showProperties = true;
+    this.linksContent = "Placeholder";
+    this.preferredPredicate = "rdf:type";
     this.qRefine = this.params.qr||"";
     this.cache = this.params.cache||"cached";
     this.q  = this.params.q||"";
     this.qGraph = "";
+    this.activeGraph = "";
+    this.backupGraph = null;
     this.searchData = {};
     this.history = [];
-    this.mode=this.params.mode||"list";
-    this.showAdvancedListOptions = false;
+    this.mode=this.params.mode||"card";
+    this.showAdvancedListOptions = true;
+    this.showMenu = false;
     //this.sortMode = "createdDateDesc";
     this.sortMode = "sortMode:_ModifiedDateDesc";
     this.sortModeStates = [
@@ -49,7 +59,7 @@ export class App {
     this.server = (""+document.location.href).match(/\:\/\/localhost/)?"http://3.84.16.9:8020":"";
     this.client = (document.location.href).match(/\:\/\/localhost/)?"":"";
     this.cardEdit = false;
-    this.editMode = "edit";
+    this.editMode = "view";
     this.tempGraph = null;
     this.blocks = [];
     this.loadBlocks();
@@ -82,6 +92,7 @@ export class App {
     this.editImageModal;
     this.insertTermModal;
     this.loginModal 
+    this.userValidated = false;
     this.editImage = {
       src:"",
       width:"500px",
@@ -90,14 +101,15 @@ export class App {
       title:"",
       align:"float:left"
     }
-    this.globalActions=[
+/*    this.globalActions=[
       {label:"Select an action",id:"selectAction",action:()=>console.log("Select an action")},
-      {label:"Go To Classes",id:"createNewClass",action:()=>this.fetchContext("class:_Class","list")},
-      {label:"Go To Properties",id:"createNewProperties",action:()=>this.fetchContext("class:_Property","list")},
-    ];
-    this.selectedAction="selectAction";
+      {label:"Go To Classes",id:"createNewClass",action:()=>this.fetchContext("class:_Class","card")},
+      {label:"Go To Properties",id:"createNewProperties",action:()=>this.fetchContext("class:_Property","card")}
+    ];*/
+    this.classAction="classAction:_View";
+    this.activeClass="";
     this.defaultCard = {title:"New Card",body:"This is a new card.",image:"",curie:"foo:bar",prefix:"",ns:"",datatype:"",nodeKind:"",
-domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:""};
+domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:"",activePredicate:"",target:"",filename:"",username:"",password:"",graph:"",predicateEntries:[]};
     this.defaultNamespace = "http://semantical.llc/ns/";
     this.activeCard = Object.assign(this.defaultCard,{});
     this.linkPropertyList = {};
@@ -106,11 +118,8 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:""};
 //    this.server = "";
 //    this.client = this.server
     setTimeout(()=>{
-        this.updateConfiguration();
-        this.updateInstanceList('class:_Class');
-        this.updateInstanceList('class:_Property');
-        this.updateInstanceList('class:_Cardinality');
-        this.updateInstanceList('class:_XSD');
+        this.refreshApp();
+//        console.log("db",db);
 //        this.updateInstanceList('class:_Country');
 //        this.updateInstanceList('class:_Industry');
 //        this.updateInstanceList('class:_Strain');
@@ -118,15 +127,43 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:""};
       },50);    
   }
 
+  refreshApp(){
+    this.updateClassNamespace();
+    this.updateConfiguration();
+    this.updateInstanceList('class:_Graph');
+    this.updateInstanceList('class:_Class');
+//    this.updateInstanceList('class:_Property');
+    this.updateInstanceList('class:_Cardinality');
+    this.updateInstanceList('class:_XSD');
+    this.loadMenu('menuItem:_MainMenu','.mainMenu');
+  }
+
   showTypedMessage() {
     alert(this.typedMessage);    
   }
 
-  invokeAction(){
-    this.globalActions.find((action)=>(action.id === this.selectedAction)).action();
+  activateClass(activeClass,classAction){
+    console.log(activeClass,classAction);
+    switch(classAction){
+      case "classAction:_View":this.fetchContext(activeClass);break;
+      case "classAction:_New":this.newCard(activeClass);break;
+    }
   }
 
-  fetchContext(context,hash="list",options = {qRefine:'',noPush:false,}){
+  selectGraph(graph=this.activeGraph){
+    this.activeGraph = graph;
+    this.updateInstanceList('class:_Class');
+  }
+
+  invokeAction(){
+    this.globalActions.find((action)=>(action.id === this.selectedClass)).action();
+  }
+
+
+  fetchContext(context,hash="card",dataOptions = {qRefine:'',noPush:false,}){
+    if (this.cardEdit){
+      alert("You are currently in edit mode. You must save or revert changes first.");
+      return}
     var body = this.constraints;
   	var options = {method: 'POST',
                body: JSON.stringify(body,null,4),
@@ -134,17 +171,19 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:""};
                cache: 'default'};
     this.wait = true;
     //this.cache = cacheState;
-  	window.fetch(`${this.server}/lib/server.sjs?context=${context}&cache=${this.cache}`,options)
+  	window.fetch(`${this.server}/lib/server.sjs?context=${context}&cache=${this.cache}&uid=${this.loginData.uid}`,options)
   	.then((blob)=>blob.json())
   	.then((json)=>{
 
-        this.selectedAction = "";
+        this.selectedClass = "";
   			this.contextData = json;
   			this.ns = json["@context"];
+        this.widgets = json.content;
   			this.g = json["graph"];
   			this.report = this.g["report:_"]
   			if (!options.noPush){this.history.push(this.context);}
   			this.context = this.report['report:hasContext'][0].value;
+        window.history.pushState({context:context}, this.g[context]['term:prefLabel'][0].value,`/?context=${context}`);
 /*        if (this.g[this.context]['rdf:type'][0].value != 'class:_Class'){
           if (this.g[this.context].hasOwnProperty('rdfs:subClassOf')){
             delete this.g[this.context]['rdfs:subClassOf'];
@@ -152,8 +191,9 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:""};
         }*/
   			this.namespace = this.ciri(context);
 //  			this.predicates = this.report['report:hasPredicate']?this.report['report:hasPredicate'].map((predicate)=>predicate.value):[];
-        this.predicates = [];
-        if (this.report.hasOwnProperty('report:hasPredicateNode')){
+        this.predicates = json.predicates;
+        this.linkPredicates = json.linkPredicates;
+/*        if (this.report.hasOwnProperty('report:hasPredicateNode')){
           let nodes = this.report['report:hasPredicateNode'].map((node)=>node.value);
           nodes.forEach((node)=>{
             //console.log(this.g[node]);
@@ -162,30 +202,38 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:""};
                 label:this.g[node]['report:hasPredicateLabel'][0].value,
                 domain:this.g[node].hasOwnProperty('report:hasPredicateDomain')?this.g[node]['report:hasPredicateDomain'][0].value:"class:_Term",
                 domainLabel:this.g[node].hasOwnProperty('report:hasPredicateDomainLabel')?this.g[node]['report:hasPredicateDomainLabel'][0].value:"Term",
+                domainPlural:this.g[node].hasOwnProperty('report:hasPredicateDomainPluralLabel')?this.g[node]['report:hasPredicateDomainPluralLabel'][0].value:"Terms",
                 range:this.g[node].hasOwnProperty('report:hasPredicateRange')?this.g[node]['report:hasPredicateRange'][0].value:"class:_Term",
                 rangeLabel:this.g[node].hasOwnProperty('report:hasPredicateRangeLabel')?this.g[node]['report:hasPredicateRangeLabel'][0].value:"Term",
               }
               this.predicates.push(predicate);
           })
-        }
+        } */
   			this.links = this.report['report:hasLink']?this.report['report:hasLink'].filter((link)=>link.value != null).map((link)=>link.value):[];
         this.page = 1;
+        this.preferredPredicate = this.g[context].hasOwnProperty('term:hasPreferredProperty')?this.g[context]['term:hasPreferredProperty'][0].value:null;
   			this.sort();
-        let tabIndex = this.predicates.map((predicate)=>predicate.curie).includes('rdf:type')?this.predicates.map((predicate)=>predicate.curie).indexOf('rdf:type'):0;
   			//this.activeLinkPredicate = predicate;
         //this.activateTab(this.predicates.map((predicate)=>predicate.curie)[tabIndex],true,true);
         console.log(tabIndex);
         console.log(this.predicates);
-        this.activePredicates = this.filterListPredicates(this.predicates);
-        let predicate = this.activePredicates.length>0?tabIndex?this.activePredicates[tabIndex].curie:this.activePredicates[0].curie:'rdf:type';
+        this.activePredicates = this.linkPredicates; //this.filterListPredicates(this.predicates)||[];
+        let tabIndex = this.activePredicates.map((predicate)=>predicate.curie).includes('rdf:type')?this.activePredicates.map((predicate)=>predicate.curie).indexOf('rdf:type'):0;
+        console.log("Active Predicates:",this.activePredicates);
+        let predicate = this.preferredPredicate?this.preferredPredicate:this.activePredicates.length>0?this.activePredicates[tabIndex].curie:'rdf:type';
         //this.activeLinkPredicate = predicate;
-        this.activateTab(predicate,true,options);
-  			this.qRefine = options.qRefine||"";
-  			this.q = "";
-        this.reversed = false;
-        this.wait = false;
-        this.mode = hash;
-        this.refreshBlocks();
+        setTimeout(()=>{
+          //this.activateTab(predicate,true,options);
+          this.activateTab();
+    			this.qRefine = dataOptions.qRefine||"";
+    			this.q = "";
+          this.reversed = false;
+          this.wait = false;
+          this.mode = hash;
+          //this.getWidgets();
+          this.refreshBlocks();
+          this.validateUserContext();
+        },500)
   			//console.log(this.activeLinkPredicate);
         //console.log("************ Predicates");
         //console.log(this.predicates)
@@ -204,11 +252,15 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:""};
   }
 
   filterListPredicates(predicates){
-    let termList = ['rdfs:domain','rdfs:range','property:hasDomain','property:hasRange','term:hasPublishingStatus','term:hasSourceTerm'];
+    let termList = ['rdfs:domain','rdfs:range']; //'property:hasDomain','property:hasRange','term:hasPublishingStatus',
     return predicates != null?predicates.filter((predicate)=>!(termList.includes(predicate.curie))):[];
   }
 
   fetchSearch(){
+  if (this.cardEdit){
+      alert("You are currently in edit mode. You must save or revert changes first.");
+      return}
+
   	if (this.q != ""){
   	var options = {method: 'GET',
                mode: 'cors',
@@ -276,37 +328,18 @@ inputSearch(){
   	//console.log(this.contextData['@context'])
   	return `${this.contextData['@context'][prefix]}${local}`;
   }
-  activateTab(predicate = 'rdf:type',resetPage=true,noPush=false,options={}){
-  	//console.log(this.qRefine);
+  activateTab(predicate,resetPage=true,noPush=false,options={}){
+  	//console.log(`Entering activeTab with predicate = ${predicate}`);
+    //this.activeLinkPredicate = null;
     if (options.predicate != null){predicate = options.predicate}
-  	this.activeLinkPredicate = predicate;
-/*    console.log(this.activeLinkPredicate);
-  	var regexes = this.qRefine.split(/\s+/).map((token)=>(token != '')?new RegExp(token,'i'):null).filter((regex)=>regex != null);
-  	//console.log(regex);
-    var predicateLinks = this.links.filter((link)=>this.g[link].hasOwnProperty(this.activeLinkPredicate) && (this.g[link][this.activeLinkPredicate][0].value === this.context));
-    var qLinks = predicateLinks;
-//    var searchables = new Set(['dealer:Class','vehicle:Class']);
-    for (var regex of regexes){
-//      if (searchables.has(this.g[this.context]['rdf:type'][0].value)){
-//          console.log(regex);
-//          console.log(qLinks);
-//          qLinks = qLinks.filter((link)=> regex?((this.g[link]['term:prefLabel'][0].value).match(regex))||(this.g[link]['term:hasSearchable'][0].value).match(regex):true);
-//        } else {
-          qLinks = qLinks.filter((link)=> regex?(this.g[link]['term:prefLabel'][0].value).match(regex):true);
-//        }
-    }
-    this.itemCount = qLinks.length;
-    //if (this.reversed){qLinks.reverse()}
-    this.totalPages = Math.ceil((this.itemCount - 1)/ this.pageSize);
-    this.visibleLinks =qLinks.filter((link,index)=>index >= (this.pageSize * this.page) && (index <this.pageSize * (this.page + 1)))
-    //this.visibleLinks = this.filterVisible();
-    
-    if (resetMode){
-      this.mode = "card"
-    } */
-    // New code for retrieving lists
-    let path = `${this.server}/lib/links.sjs?context=${this.context}&predicate=${predicate}&q=${this.qRefine}&page=${this.page}`;
-    path += `&pageSize=${this.pageSize}&sort=${options.sortMode||this.sortMode}`;
+  	this.activeLinkPredicate = predicate?predicate:this.activePredicates.length>0?this.activePredicates[0].curie:"";
+    this.activeLinkPredicate = this.activeLinkPredicate != ''?this.activeLinkPredicate:(this.g[this.context]['rdf:type'][0].value === 'class:_Class')?"rdf:type":"";
+    //console.log("activeLinkpredicate = ",this.activeLinkPredicate);
+    let sortMode = this.g[this.context].hasOwnProperty('class:isClassWithPreferredSortMode')?this.g[this.context]['class:isClassWithPreferredSortMode'][0].value:this.sortMode;
+    //console.log(sortMode);
+    this.sortMode = sortMode;
+    let path = `${this.server}/lib/links.sjs?context=${this.context}&predicate=${this.activeLinkPredicate}&q=${this.qRefine}&page=${this.page}`;
+    path += `&pageSize=${this.pageSize}&sort=${this.sortMode||options.sortMode}`;
     if (this.constraints.length>0){
       let constraintString = this.constraints.map((constraint)=>`${constraint.predicate}|${constraint.value}`).join(';');
       path += `&constraints=${constraintString}`;
@@ -315,8 +348,10 @@ inputSearch(){
     window.fetch(path)
     .then((response)=>response.json())
     .then((json)=>{
-      console.log(json);
+      //console.log(json);
       this.activeLinksData = json;
+      this.linksContent = json.content.content||"";
+      //console.log(this.linksContent);
       this.page = json.page;
       if (resetPage){
       this.page = 1;
@@ -426,23 +461,30 @@ inputSearch(){
   	    return params;
   		}
   	}
+
   	displayLiteral(item){
       if (!item){return ""}
       let datatype = item.datatype||"xsd:string";
       switch(datatype){
-        case 'xsd:currency_usd':{return parseFloat(item.value).toLocaleString(["en-us"],{style:"currency",currency:"USD"})};
+        case 'xsd:currency_usd':{return `${parseFloat(item.value).toLocaleString(["en-us"],{style:"currency",currency:"USD"})} USD`};
+        case 'xsd:currency_eur':{return `${parseFloat(item.value).toLocaleString(["en-us"],{style:"currency",currency:"EUR"})}`};
         case 'xsd:integer':{return parseInt(item.value).toLocaleString(["en-us"],{style:"decimal",maximumFractionDigits:0})};
         case 'xsd:float':{return parseFloat(item.value).toLocaleString(["en-us"],{style:"decimal",maximumFractionDigits:4})};
         case 'unit:_MilesPerGallon':{return `${parseInt(item.value)} mpg`};
         case 'unit:_Mile':{return `${parseInt(item.value).toLocaleString(["en-us"],{style:"decimal",maximumFractionDigits:1})} miles`};
-        case "xsd:dateTime":{return `${(new Date(item.value)).toLocaleString(["en-us"],{ timeZone: 'UTC' } )}`};
+//        case "xsd:dateTime":{return `${(new Date(item.value)).toLocaleString(["en-us"],{ timeZone: 'UTC' } )}`};
+//        case "xsd:date":{return `${(new Date(item.value)).toLocaleString(["en-us"],{ timeZone: 'UTC' } )}`};
+          case "xsd:dateTime":{return item.value};
+          case "xsd:date":{return item.value};
         case "termType:_Image":return `<a href="${item.value}" target="_blank"><img src="${item.value}" class="imageThumbnail"/></a>`;
-        case "xsd:textLiteral":return item.value;
-        case "xsd:imageURL":return `<div class="internalImageContainer"><a href="${item.value}" target="_blank"><img src="${item.value}" class="link internalImage"/></a></div`;
+        case "xsd:textLiteral":return `<pre>${item.value}</pre>`;
+        case "xsd:imageURL":return `<div class="internalImageContainer"><a href="${item.value}" target="_blank"><img src="${item.value}" class="link internalImage"/></a></div>`;
+        case "xsd:fileURL":return `<div class="internalFileContainer"><a href="${item.value}" target="_blank">${item.value}</a></div>`;
         case "xsd:hexColor":return `<div class="colorSwatchContainer">
           <div class="colorSwatch" style="background-color:${item.value}">&nbsp;</div>
           <div class="colorValue">${item.value}</div>
           </div>`;
+        case "xsd:curie":return `<span class="curie">${item.value}</span>`;
         case "xsd:anyURI":return `<a href="${item.value}" target="_blank" class="link">${item.value.replace(/(http.+?\/\/)(.+?\/).*/,'$1$2...')}</a>`;
         case "xsd:anyURL":return `<a href="https://${item.value}" target="_blank" class="link">${item.value.replace(/(http.+?\/\/)(.+?\/).*/,'$1$2...')}</a>`;
         case "identifier:_Email":return `<a href="mailto:${item.value}" target="_blank" class="emailLink"><span>${item.value}</span></a>`
@@ -484,12 +526,12 @@ inputSearch(){
 
 
   	goBack(){
-  		if (this.history.length > 1){
-  			//this.history.pop();
-  			var context = this.history.pop();
-  			this.fetchContext(context,"card","",true);
-  		}
+      window.history.back();
   	}
+
+    goForward(){
+      window.history.back();
+    }    
   	wrapArray(arr){
   		let wrappedArray = Array.isArray(arr)?arr:(arr!=null)?[arr]:[];
       if (wrappedArray.length > 0){
@@ -518,10 +560,10 @@ inputSearch(){
       this.activateTab(this.activeLinkPredicate);
     }
 
-    jumpTo(selectedAction){
+    jumpTo(selectedClass){
         this.qRefine = "";
         this.constraints = [];        
-        this.fetchContext(selectedAction,'list')
+        this.fetchContext(selectedClass,'card')
     }
 
     setMode(mode){
@@ -539,14 +581,29 @@ inputSearch(){
             this.constraints = [];
             if (this.predicates.map((predicate)=>predicate.curie).includes('rdf:type')){
               console.log(this.predicates);
-              this.activateTab('rdf:type')
+              this.activateTab()
             }
+            break;
+          }
+          case "widgets":{
             break;
           }
           default:break
         }
       }
     }
+    getWidgets(){
+      this.widgets = "<p><b>Loading widgets ...</b></p>"
+      let path = `/lib/getWidgets.sjs?context=${this.context}`;
+      window.fetch(path)
+      .then((response)=>response.json())
+      .then((json)=>{
+            this.widgets=json;
+        })
+      .catch((e)=>console.log(e))
+
+    }
+
     loadIngestData(){
  //     console.log("Ingest data loaded.")
         fetch(`${this.server}/files/analysis.json`)
@@ -557,6 +614,7 @@ inputSearch(){
         })
     }
     editCard(editMode="edit"){
+      this.mode="card";
        if (editMode === "edit"){
          this.activeCard.title = this.g[this.context]['term:prefLabel'][0].value
        }
@@ -665,9 +723,9 @@ inputSearch(){
        this.g[this.context]['term:prefLabel'][0].value = this.activeCard.title!= ''?this.activeCard.title:`${this.tokenize((new Date()).toISOString())}`;
        this.g[this.context]['term:hasDescription']=[{datatype:"xsd:html",value:this.activeCard.body,type:"literal"}];
        this.g[this.context]['term:hasPrimaryImageURL'] = [{datatype:"xsd:imageURL",value:this.activeCard.image,type:"literal"}];
-       if (this.activeCard.sourceCurie != ''){
+/*       if (this.activeCard.sourceCurie != ''){
          this.g[this.context]['term:hasSourceTerm'] = [{value:this.activeCard.sourceCurie,type:"uri"}];
-       }
+       }*/
        this.g[this.context]['term:hasExternalURL']= [{datatype:"xsd:anyURI",value:this.activeCard.externalURL,type:"literal"}];
     let internalTerms = this.extractInternalTerms(this.activeCard.body);  
     let termObjs=internalTerms.map((term)=>{return {value:term,type:"uri"}}); 
@@ -708,6 +766,59 @@ where {
         })
        .catch((e)=>console.log(e));
   }
+
+  saveDuplicateCardProperties(){
+    this.cardEdit = false;
+    let context = this.activeCard.curie;
+    let curie = this.activeCard.curie;
+       this.g[this.context]['term:prefLabel'][0].value = this.activeCard.title!= ''?this.activeCard.title:`${this.tokenize((new Date()).toISOString())}`;
+       this.g[this.context]['term:hasDescription']=[{datatype:"xsd:html",value:this.activeCard.body,type:"literal"}];
+       this.g[this.context]['term:hasPrimaryImageURL'] = [{datatype:"xsd:imageURL",value:this.activeCard.image,type:"literal"}];
+       this.g[this.context]['term:hasExternalURL']= [{datatype:"xsd:anyURI",value:this.activeCard.externalURL,type:"literal"}];
+    let internalTerms = this.extractInternalTerms(this.activeCard.body);  
+    let termObjs=internalTerms.map((term)=>{return {value:term,type:"uri"}}); 
+    console.log(termObjs);
+    this.g[this.context]['term:hasCrossReference']=termObjs
+    let buffer = [];
+    let update = Array.from(Object.keys(this.g[this.context])).forEach((predicate)=>{
+      let objects = Array.from(this.g[this.context][predicate]).filter((objects)=>objects!= null);
+      Array.from(this.g[this.context][predicate]).forEach((object)=>{
+        if (object.type==='uri'){
+          buffer.push(`${curie} ${predicate} ${object.value}.`)
+        }
+        else {
+          buffer.push(`${curie} ${predicate} """${object.value}"""^^${object.datatype||'xsd:string'}.`)
+        }
+      })
+    })
+    let triples = buffer.join('\n');
+    let prolog = Object.keys(this.ns).map((prefix)=>`prefix ${prefix}: <${this.ns[prefix]}>`).join('\n');
+    let output = `${prolog}
+delete {${context} ?p ?o}
+insert {
+  ${triples}
+}
+where {
+  optional {
+  ${context} ?p ?o
+  }
+}`;
+console.log(output);
+  let newRecord = {"@context":this.namespace,"graph":this.g,subject:context,curie:curie,query:output};
+  let path = `${this.server}/lib/duplicate.sjs`;
+  window.fetch(path,{method:"POST",body:JSON.stringify(newRecord,null,4)})
+       .then((response)=>response.text())
+       .then((text)=>{
+          //this.pageIndex = this.pageIndex+1;
+          //location.href=`/?context=${context}&index=${this.pageIndex}#properties`;
+//          this.pinPage(true,"properties");
+//          this.cache="refresh";
+//          this.fetchContext(curie,this.mode||"card");
+          //console.log(text);
+        })
+       .catch((e)=>console.log(e));
+  }
+
 
   revertCard(){
       this.pinPage(true,"card");
@@ -771,6 +882,7 @@ where {
     this.loginData.password = "";
     this.loginData.status = false;
     this.loginData.action = "logout";
+    this.loginData.data = {};
     let path = `${this.server}/lib/access.sjs`;
     let params = {method:"POST",body:JSON.stringify(this.loginData)};
     //console.log(params);
@@ -782,6 +894,8 @@ where {
           this.userRole = new Set(this.loginData.permissions);
           AureliaCookie.delete("login");
           this.cache = "cached";
+          this.fetchContext(this.context);
+          this.validateUserContext();          
       })
       .catch((e)=>console.log(e));
   }
@@ -799,14 +913,14 @@ where {
           this.userRole = new Set(this.loginData.permissions);
           if (!this.loginData.status){alert("Log-in failed.")}
           else {
-            AureliaCookie.set("login",JSON.stringify(this.loginData),{expiry:24,path:'',domain:'',secure:false})
+            AureliaCookie.set("login",JSON.stringify(this.loginData),{expiry:60,path:'',domain:'',secure:false})
           }
       })
       .catch((e)=>console.log(e));
   }
 
 
-  newCard(ctx,asProperty=false){
+  newCard(ctx,asProperty=false,preferredProperty='',target=''){
     let context = ctx||this.context;
     this.context = context;
     this.activeCard = Object.assign(this.defaultCard,{});
@@ -818,6 +932,14 @@ where {
 //    this.activeCard.domain = context;
     this.activeCard.image = this.g.hasOwnProperty(context)?Array.isArray(this.g[context]['term:hasPrimaryImageURL'])?this.g[context]['term:hasPrimaryImageURL'][0].value:"":"";
     this.activeCard.image = this.activeCardImage||"";
+    this.activeCard.activePredicate = preferredProperty;
+    this.activeCard.target = target;
+
+    if (context === 'class:_Class'){
+      this.activeCard.prefix = '';
+      this.activeCard.namespace = '';
+      this.activeCard.plural = '';
+    }
     if (context === 'class:_Property'){
       this.activeCard.nodeKind = '';
       this.activeCard.range = '';
@@ -834,15 +956,26 @@ where {
       this.activeCard.cardinality = 'cardinality:_ZeroOrMore';
  
     }
-    let path = `${this.server}/lib/links.sjs?context=class:_Template&constraints=template:hasTarget|${context}`
+/*    let path = `${this.server}/lib/links.sjs?context=class:_Template&constraints=template:hasTarget|${context}`
     window.fetch(path)
       .then((response)=>response.json())
       .then((json)=>{
         this.availableTemplates = json.data;
       })
       .catch((e)=>console.log(e));
-    this.generateEntityId(this.context);
-    this.newModal.open();
+    */
+    this.availableTemplates = [];
+    /* This gets additional properties appropriate to the class */
+    let path = `${this.server}/lib/newTemplate.sjs?context=${this.context}`
+    window.fetch(path)
+      .then((response)=>response.json())
+      .then((json)=>{
+        this.templateProperties = json.templateData;
+        console.log(this.templateProperties);
+        this.generateEntityId(this.context);
+        this.newModal.open();
+      })
+      .catch((e)=>console.log(e));
   }
 
   duplicateCard(){
@@ -857,27 +990,26 @@ where {
     };
     this.duplicateModal.open();
   }
-  deleteCard(){
-    let cardType = this.g[this.context]['rdf:type'][0].value;
-    if (cardType === "class:_Class"){
-      this.deleteClassItems()
-    }
-    else {
-    let typeLabel = this.g[cardType]['term:prefLabel'][0].value;
-     if (confirm(`Are you sure you wish to delete this ${typeLabel.toLowerCase()}?`)){
+
+  deleteCard(context = this.context,landing ){
+      landing = (context === this.context)?this.g[context]['rdf:type'][0].value:landing;
+//    let cardType = this.g[context]['rdf:type'][0].value;
+//    let typeLabel = this.g[cardType]['term:prefLabel'][0].value;
+     if (confirm(`Are you sure you wish to delete this item?`)){
           //console.log(`Delete card ${cardType}`);
-          let path = `${this.server}/lib/deleteCard.sjs?context=${this.context}`;
+          let path = `${this.server}/lib/deleteCard.sjs?context=${context}`;
           window.fetch(path)
             .then((response)=>response.text())
             .then((text)=>{
               console.log(text);
-              //location.href =  `${this.client}?context=${cardType}&mode=list&cache=replace`
-              this.fetchContext(cardType,"list")
+              //location.href =  `${this.client}?context=${cardType}&mode=list&cache=replace`;
+              this.refreshApp();
+              this.fetchContext(landing,"card")
             })
             .catch((err)=>console.log(err));
      }  
-   }
   }
+  
   processNewCard(){
     console.log("processing card");
     if (this.activeCard.title === ""){
@@ -899,13 +1031,17 @@ where {
               })
              .catch((e)=>console.log(e));
           }
-        console.log(this.activeCard);
+        this.activeCard.predicateEntries = [];  
+        this.templateProperties.filter((predicate)=>predicate.value).forEach((predicate)=>this.activeCard.predicateEntries.push(Object.assign(predicate,{})));
+        console.log("Predicate Entries",this.activeCard.predicateEntries);
         let path = `${this.server}/lib/newCard.sjs`;
         window.fetch(path,{method:"POST",body:JSON.stringify(this.activeCard,null,4)})
              .then((response)=>response.text())
              .then((text)=>{
                 console.log(this.activeCard);
-                location.href =  `${this.client}?context=${this.activeCard.curie}&cache=refresh&mode=card`
+                //location.href =  `${this.client}?context=${this.activeCard.curie}&cache=refresh&mode=card`;
+                this.refreshApp();
+                this.fetchContext(this.activeCard.curie,'card');
                 //console.log(text);
               })
              .catch((e)=>console.log(e));
@@ -977,17 +1113,20 @@ where {
         
       }      
       else {
-        let cleanTitle = this.summaryFilter(this.activeCard.title,128)
-        var id = this.tokenize(cleanTitle);
-        if (id === ""){id = this.tokenize((new Date()).toISOString())}
-        this.activeCard.curie = `${prefix}:_${id}`;
-        this.activeCard.prefix = "";
-        this.activeCard.namespace = "";
+      let cleanTitle = this.activeCard.title;
+      let className = this.context.replace(/.*?\:_(.+?)$/,"$1");
+      let prefix = `${className.substr(0,1).toLowerCase()}${className.substr(1)}`;
+      console.log(this.activeCard);
+      var id = this.tokenize(cleanTitle);
+      if (id === ""){id = this.tokenize((new Date()).toISOString())}
+      this.activeCard.curie = `${prefix}:_${id}`;
+      this.activeCard.title = cleanTitle;
       }
     }
     else {
-      let cleanTitle = this.summaryFilter(this.activeCard.title,128)
-      let  prefix = context.replace(/(.*)\:_.+?$/,"$1");
+      let cleanTitle = this.activeCard.title;
+      let  prefix = this.context.replace(/(.*)\:_.+?$/,"$1");
+      console.log(this.activeCard);
       var id = this.tokenize(cleanTitle);
       if (id === ""){id = this.tokenize((new Date()).toISOString())}
       this.activeCard.curie = `${prefix}:_${id}`;
@@ -1038,7 +1177,8 @@ where {
 
   }
   updateInstanceList(classContext,predicate='rdf:type'){
-    let path = `${this.server}/lib/getList.sjs?context=${classContext}&predicate=${predicate}`
+    let path = `${this.server}/lib/getList.sjs?context=${classContext}&predicate=${predicate}`;
+    path += classContext === 'class:_Class'?`&graph=${this.activeGraph}`:''
     window.fetch(path)
        .then((response)=>response.json())
        .then((json)=>{
@@ -1093,7 +1233,7 @@ filterComplianceTest(){
     content = content?content:"";
     content = content.replace(/<.+?>/g,' ').replace(/\s+/g,' ');
     content = content.substr(0,len);
-    return content;
+    return `${content}`;
   }
 
   addProperty(property){
@@ -1105,6 +1245,7 @@ filterComplianceTest(){
     .then((response)=>response.json())
     .then((json)=>{
       this.availableProperties = json.results;
+      console.log(this.availableProperties);
       this.selectedProperty=property;
       if (property != null){this.setPropertyListValue(property)};  
       this.addPropertyModal.open();
@@ -1195,18 +1336,18 @@ filterComplianceTest(){
     }
     this.constraints.push(constraint);
     console.log(this.constraints);
-    this.fetchContext(this.context,"list");      
+    this.fetchContext(this.context,"card");      
   }
   removeConstraint(index){
     this.constraints.splice(index,1);
     console.log(this.constraints);
     this.cache="refresh";
-    this.fetchContext(this.context,"list");
+    this.fetchContext(this.context,"card");
   }
 
   clearConstraints(){
     this.constraints = [];
-    this.fetchContext(this.context,"list");
+    this.fetchContext(this.context,"card");
   }
   formatDoc(action,params={},gui=false){
     let editor = document.querySelector('.bodyEditor');
@@ -1240,7 +1381,7 @@ filterComplianceTest(){
   imageEdit(){
 //    this.editImageModal.open();
       let selection = document.getSelection();
-      let imageNode = selection.anchorNode.querySelector("IMG");
+      let imageNode = selection.anchorNode.querySelector?selection.anchorNode.querySelector("IMG"):null;
       if (imageNode){
         this.editImage = {
           src:imageNode.getAttribute('src'),
@@ -1248,7 +1389,7 @@ filterComplianceTest(){
           height:imageNode.getAttribute('height'),
           alt:imageNode.getAttribute('alt')||"",
           title:imageNode.getAttribute('title')||"",
-          align:imageNode.getAttribute('align')||""
+          align:imageNode.getAttribute('alignment')||""
         }
       }
       document.execCommand("insertHTML",false,"%^%");
@@ -1260,11 +1401,13 @@ filterComplianceTest(){
 //      this.processEditImage(url);
   }
 
+
+
   processEditImage(){
     console.log("Entering processEditImage");
     //this.editImageModal.close();
-    let img = `<img src="${this.editImage.src}" width="${this.editImage.width}" height="${this.editImage.height}"
-    alt="${this.editImage.alt}" title="${this.editImage.title}" style="${this.editImage.align}"/>`;
+    let img = `<img src="${this.editImage.src}" class="bodyEditorImage ${this.editImage.align}" alignment="${this.editImage.align}"
+    alt="${this.editImage.alt}" title="${this.editImage.title}" width="${this.editImage.width}" height="${this.editImage.height}"/>`;
     console.log(img);
     let editor = document.querySelector('.bodyEditor');
     editor.focus();
@@ -1303,12 +1446,12 @@ filterComplianceTest(){
   console.log(this.insertTermObj.asImage);
   let link = (this.insertTermObj.asImage==="image")?`
      <div class="insertedImageContainer">
-        <a href="/?context=${this.insertTermObj.value}" class="link"  resource="${this.insertTermObj.value}" property="term:hasInternalTerm">
+        <div onclick="window.app.fetchContext('${this.insertTermObj.value}','card')"  class="link"  resource="${this.insertTermObj.value}" property="term:hasInternalTerm">
           <img src="${this.insertTermObj.image}" class="insertedImage"/>
           <div class="imageCaption">${this.insertTermObj.temp}</div>
-        </a>
-      </div>`:`<a href="/?context=${this.insertTermObj.value}" class="link" resource="${this.insertTermObj.value}" 
-      property="term:hasInternalTerm">${label}</a>`;
+        </div>
+      </div>`:`<span onclick="window.app.fetchContext('${this.insertTermObj.value}','card')" class="link" resource="${this.insertTermObj.value}" 
+      property="term:hasInternalTerm">${label}</span>`;
   let editor = document.querySelector('.bodyEditor');
   let html = editor.innerHTML;
   editor.innerHTML = html.replace("%^%",link)
@@ -1337,14 +1480,16 @@ filterComplianceTest(){
  insertCodeBlock(){
      let editor = document.querySelector('.bodyEditor');
      editor.focus();
-     document.execCommand('insertHTML',false,'<pre class="codeBlock"># Insert Code Here</pre>');
+     document.execCommand('insertHTML',false,'<pre class="codeBlock">// Insert Code Here</pre>');
  }
 
  insertVideo(){
-    let videoEmbed = window.prompt("Enter video Embed Code");
-    videoEmbed = videoEmbed.replace(/width=".*?"/,`width="640"`).replace(/height=".*?"/,`height="480"`);
+    let videoURL = window.prompt("Enter video URL");
+//    videoEmbed = videoEmbed.replace(/width=".*?"/,`width="640"`).replace(/height=".*?"/,`height="480"`);
+     let videoEmbed = this.generateVideoLink(videoURL);
      let editor = document.querySelector('.bodyEditor');
      editor.focus();
+
      document.execCommand('insertHTML',false,videoEmbed);
  }
 
@@ -1363,7 +1508,7 @@ filterComplianceTest(){
       .then((response)=>response.text())
       .then((text)=>{
           this.cache = "refresh";
-          this.fetchContext("class:_Class",'list')
+          this.fetchContext("class:_Class",'card')
           })
       .catch((e)=>console.log(e))
     }
@@ -1382,7 +1527,8 @@ filterComplianceTest(){
     let me = this;
     reader.addEventListener("load", function () {
       target.image = reader.result;
-      me.createImageFile();
+      target.filename = file.name;
+          me.createImageFile();
   }, false);
     reader.readAsDataURL(file);
     //this.activeCard.image = window.URL.createObjectURL(file);
@@ -1390,10 +1536,11 @@ filterComplianceTest(){
 
   createImageFile(id=this.activeCard.curie){
     let url = this.activeCard.image;
+    let name = this.activeCard.filename;
     if (url.startsWith('data:image')){
        let type=url.replace(/^data:image\/(\w+)\;.*/,'$1');
        let data = url.split(';base64,')[1];
-       let options = {"method":"POST",body:JSON.stringify({imageData:data,imageType:type,id:id},null,4)}
+       let options = {"method":"POST",body:JSON.stringify({imageData:data,imageType:type,id:id,filename:name},null,4)}
        let target = this.activeCard;
        window.fetch(`${this.server}/lib/uploadImage.sjs`,options)
        .then((resp)=>resp.json())
@@ -1404,8 +1551,47 @@ filterComplianceTest(){
        .catch((e)=>console.log(e))
     }
   }
+
+  setFile(event){
+//    console.log(event);
+    //console.log(event.target.value)
+    let file = event.srcElement.files[0];
+    let reader = new FileReader();
+    let target = this.activeCard;
+    let me = this;
+    reader.addEventListener("load", function () {
+      target.externalURL = reader.result;
+      target.filename = file.name;
+      if (target.title != ''){}
+      target.title = target.filename.split('.')[0]
+      console.log(target.filename);
+      me.createFile();
+  }, false);
+    reader.readAsDataURL(file);
+    //this.activeCard.image = window.URL.createObjectURL(file);
+  }
+
+  createFile(id=this.activeCard.curie){
+    let url = this.activeCard.externalURL;
+    let name = this.activeCard.filename;
+    if (url.startsWith('data:')){
+       let type=url.replace(/^data:(.+?)\;.*/,'$1');
+       let data = url.split(';base64,')[1];
+       let options = {"method":"POST",body:JSON.stringify({fileData:data,fileType:type,id:id,filename:name},null,4)}
+       let target = this.activeCard;
+       window.fetch(`${this.server}/lib/uploadFile.sjs`,options)
+       .then((resp)=>resp.json())
+       .then((json)=>{
+          let path = `${this.server}/lib/getFile.sjs?path=${json.filepath}`;
+          target.externalURL = path;
+        })
+       .catch((e)=>console.log(e))
+    }
+  }
+
+
   loadBlocks(){
-    this.blocks=[
+/*    this.blocks=[
 {
       type:"sp",
       predicate:'document:hasAuthor',
@@ -1414,7 +1600,7 @@ filterComplianceTest(){
       container:'leftPane',
       header:`<h2>Author(s)</h2>`,
       footer:``,
-      mode:["card"],
+      mode:["card","list"],
       css:`.authorEntry {padding-bottom:10pt;}
       .authorImage {
         width:90%;
@@ -1458,7 +1644,7 @@ filterComplianceTest(){
       }
       .authorDescription {font-size:10pt;font-style:italic;display:block;width:70%}
       `,
-      template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}','list')" class="aboutAuthor_1">
+      template:(context,graph) =>`<div onclick="window.app.fetchContext('${context}','card')" class="aboutAuthor_1">
         <div class="imageContainer2"><img src="${graph[context]['term:hasPrimaryImageURL'][0].value}" class="authorImage2"/></div>
         <div class="authorDescription">
         ${graph[context]['term:hasDescription'][0].value}</div>
@@ -1473,7 +1659,7 @@ filterComplianceTest(){
       container:'leftPane',
       header:`<h2>Topic(s)</h2>`,
       footer:``,
-      mode:["card"],
+      mode:["card","list"],
       css:``,
       template:(context,graph,index,count) =>`<span onclick="window.app.fetchContext('${context}')" class="topic link">${graph[context]['term:prefLabel'][0].value}</span>`
     } ,
@@ -1486,7 +1672,7 @@ filterComplianceTest(){
       container:'leftPane',
       header:``,
       footer:``,
-      mode:["card"],
+      mode:["card","list"],
       css:``,
       template:(context,graph,index,count) =>`<span onclick="window.app.fetchContext('${context}')" class="link">${graph[context]['term:prefLabel'][0].value}</span>`
     },
@@ -1499,7 +1685,7 @@ filterComplianceTest(){
       container:'leftPane',
       header:`<h2>Related Topics</h2><ul>`,
       footer:`</ul>`,
-      mode:["card"],
+      mode:["card","list"],
       css:``,
       template:(context,graph,index,count) =>`<li><span onclick="window.app.fetchContext('${context}')" class="topic link">${graph[context]['term:prefLabel'][0].value}</span></li>`
     },
@@ -1512,12 +1698,13 @@ filterComplianceTest(){
       container:'leftPane',
       header:`<h2>Link(s) to Original</h2>`,
       footer:``,
-      mode:["card"],
+      mode:["card","list"],
       css:``,
       template:(context,graph,index,count) =>`<div><a class="topic link" target="_blank">${window.app.displayLiteral({value:context,datatype:'xsd:anyURI'})}</a></div>`
     }
 
-    ]
+    ] */
+    this.blocks = [];
 
   }
 refreshBlocks(){
@@ -1635,7 +1822,10 @@ setBodyToTemplate(){
             this.defaultLabel = graph[configuration].hasOwnProperty('configuration:hasSiteName')?graph[configuration]['configuration:hasSiteName'][0].value:"";
             this.defaultIcon = graph[configuration].hasOwnProperty('configuration:hasIcon')?graph[configuration]['configuration:hasIcon'][0].value:"";
             this.defaultPage =  graph[configuration].hasOwnProperty('configuration:hasHomePage')?graph[configuration]['configuration:hasHomePage'][0].value:"page:_Home";
-            let mode = graph[configuration].hasOwnProperty('configuration:hasMode')?graph[configuration]['configuration:hasMode'][0].value:"list";
+            this.activeCSS =  graph[configuration].hasOwnProperty('configuration:hasCSS')?graph[configuration]['configuration:hasCSS'][0].value:"";
+            this.footer =  graph[configuration].hasOwnProperty('configuration:hasFooter')?graph[configuration]['configuration:hasFooter'][0].value:"";
+            this.topBannerMessage =   graph[configuration].hasOwnProperty('configuration:hasTopBanner')?graph[configuration]['configuration:hasTopBanner'][0].value:"";
+            let mode = graph[configuration].hasOwnProperty('configuration:hasMode')?graph[configuration]['configuration:hasMode'][0].value:"card";
             this.mode=this.params.mode||mode;
             this.context = this.params != null?this.params.context||this.defaultPage:this.defaultPage;
 
@@ -1652,8 +1842,118 @@ setBodyToTemplate(){
     return expr.replace(/(^|\W)(\w)/g,(text)=>(text).toUpperCase())
   }
   graphToContext(){
-    window.gvis.loadSelectedContext();
-    this.fetchContext(window.gvis.context,"list");
+    //window.gvis.loadSelectedContext();
+    let context = window.gvis?window.gvis.context:this.context;
+    this.fetchContext(context,"card");
   }
+  graphQ(event){
+    console.log(event);
+    if (event.keyCode === 13) {
+      window.gvis.loadSelectedContext(this.context,this.qGraph);
+    }
+  }
+  article(predicate,object){
+    if (object[0].match(/[AEHIOU]/)){
+      if (predicate.match(/ A$/)){
+        predicate += 'n';
+      }
+    }
+    return predicate;
+  }
+  getPredicate(predicate){
+    return this.predicates?this.predicates.find((predicate)=>predicate === predicate.s):null;
+  }
+  getPreferredClasses(context){
+    if (!this.g){return []}
+    let contextClass = this.g[context]['rdf:type'][0].value;
+    console.log(contextClass);
+    let preferredProperty = this.g[contextClass].hasOwnProperty('term:hasPreferredProperty')?this.g[contextClass]['term:hasPreferredProperty'][0].value:'';
+    console.log(preferredProperty);
+    if (preferredProperty !=''){
+      this.preferredProperty = preferredProperty;
+      let prefix = preferredProperty.split(/:/)[0];
+      console.log(prefix)
+      //console.log(Array.from(this.instanceList['class:_Class']['rdf:type']));
+      let classInstances = Array.from(this.instanceList['class:_Class']['rdf:type']).filter((instance)=>instance.prefix === prefix);
+      console.log(classInstances);
+      return classInstances
+    }
+    else return []  
+  }
+    loadMenu(context,selector){
+      let path = `/lib/menu.sjs?context=${context}&predicate=menuItem:hasParentMenuItem&sort=sortMode:_OrdinalAsc&transitive=plus&pageSize=100`;
+    window.fetch(path)
+      .then((response)=>response.json())
+      .then((json)=>{
+        let menu = json.data;
+        let html = this.traverseMenu(menu,context);
+        html = html.replace(/<ul><\/ul>/g,'');
+        let mainMenu = document.querySelector(selector);
+        mainMenu.innerHTML = html;
+      })
+      .catch((error)=>console.log(error))
+    }
+    traverseMenu(menu,context,level=0){
+      let subMenus = menu.filter((menuItem)=>menuItem.object === context);
+      return subMenus.length>0?`<ul>${subMenus.map((menuItem)=>`<li class="menuItem level${level}"><div class="link" onclick="window.app.selectMenuItem('${menuItem.target}')"
+        title="${menuItem.description}">${menuItem.linkLabel}</div>${this.traverseMenu(menu,menuItem.link,level+1)}</li>`).join('\n')}</ul>`:'';
+    }
+    selectMenuItem(context){
+      if (context != ""){this.fetchContext(context,'card')};
+      this.showMenu = false;
+    }
+    convertToRichText(){
+      let editor = document.querySelector('.bodyEditor');
+      editor.innerHTML = editor.textContent;  
+      this.activeCard.body = editor.innerHTML;    
+    }
+    convertFromRichText(){
+      let editor = document.querySelector('.bodyEditor');
+      editor.textContent = editor.innerHTML;      
+      this.activeCard.body = editor.innerHTML;
+    }
+
+    getVideoId(url) {
+      var regExpYouTube = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      var regExpVimeo = /^.*(vimeo\.com)\/(.+$)/
+
+      var match = url.match(regExpYouTube);
+
+      if (match && match[2].length == 11) {
+          return {id:match[2],type:"youtube"};
+      } else {
+      match = url.match(regExpVimeo)  
+      if (match){
+        return {id:match[2],type:"vimeo"};
+
+      }
+      else
+
+       {
+          return {type:'error'};
+      }
+  }}
+   generateVideoLink(url){
+     var video = this.getVideoId(url);
+
+     if (video.type != 'error'){
+        if (video.type === "youtube") {return `<iframe width="640" height="480" src="//www.youtube.com/embed/${video.id}" frameborder="0" allowfullscreen></iframe>`; }
+        if (video.type === "vimeo") {return `<iframe width="640" height="480" src="//player.vimeo.com/video/${video.id}" frameborder="0" allowfullscreen></iframe>`; }
+
+        }
+      else {return ""}   
+    }
+    validateUserContext(){
+      let role = this.loginData?this.loginData.data?this.loginData.data.hasOwnProperty('user:hasUserRole')?this.loginData.data['user:hasUserRole'][0].value:"":"":"";
+      console.log(role);
+      switch(role){
+        case "userRole:_Admin":this.userValidated=true;break;
+        case "userRole:_DataSteward":{
+          let typeClass = this.g[this.context]['rdf:type'][0].value;
+          this.userValidated = this.loginData.data.hasOwnProperty('user:hasEditClass')?this.loginData.data['user:hasEditClass'].find((editClass)=>editClass.value === typeClass ||editClass.value === this.context)!=null:false;
+          };break;
+        default: this.userValidated = false;
+      }
+    }
 }
 

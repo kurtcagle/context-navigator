@@ -1,0 +1,46 @@
+{
+    "@context": {
+        "@vocab": "http://schema.org",
+        "person": "http://semanticalllc.org/ns/person/",
+        "company": "http://semanticalllc.org/ns/company/",
+        "article": "http://semanticalllc.org/ns/article/",
+        "magazine": "http://semanticalllc.org/ns/magazine/",
+        "xsd": "http://www.w3.org/2001/XMLSchema"
+    },
+    "@type": "Article",
+    "@id": "article:_SEOArticle",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "http://cognitiveworlds.com/?context=article:_SEOArticle"
+    },
+    "author": {
+        "@type": "Person",
+        "name": "Kurt Cagle",
+        "@id": "person:_KurtCagle",
+        "url": "http://cognitiveworlds.com/?context=person:_KurtCagle"
+    },
+    "headline": "SEO Article",
+    "datePublished": "2019-11-03T10:25:00",
+    "dateModified": "2019-11-03T10:25:00",
+    "url": "http://cognitiveworlds.com/?context=article:_SEOArticle",
+    "publisher": {
+        "@type": "Organization",
+        "name": "Cognitive World",
+        "@id": "company:_CognitiveWorld",
+        "url": "http://cognitiveworlds.com/?context=company:_CognitiveWorld",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "http://cognitiveworlds.com/images/logo.jpg"
+        }
+    },
+    "publication": {
+        "@type": "PublicationEvent",
+        "name": "The Cagle Report",
+        "@id": "magazine:_TheCagleReport",
+        "url": "http://cognitiveworlds.com/?context=magazine:_TheCagleReport"
+    },
+    "image": {
+    "@type": "ImageObject",
+    "url": "http://cognitiveworlds.com/images/logo.jpg"
+    }
+}

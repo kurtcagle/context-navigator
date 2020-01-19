@@ -11,11 +11,7 @@
   max-height:600px;
   overflow-y:auto;
 
-  // Adding a "fade in" style transition is an easy way to make the modal 
-  // feel more professional. In this case, I want it to fade from transparent
-  // to black.
   background: white;
-//  display:block;
   font-family:Arial;
   padding:10pt;
 
@@ -23,7 +19,6 @@
   flex-direction:column;
   justify-content:center;
   align-items:center;
-//  background: transparent;
   font-family:Arial;
   transform:scale(0,0);
   transition: background 250ms ease-in-out;
@@ -32,3 +27,5 @@
 .visible {
     display:flex;
   }
+
+

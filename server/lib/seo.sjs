@@ -1,55 +1,39 @@
-declareUpdate();
+// Start SEO
+'use strict';
+//declareUpdate();
 var sem = require("/MarkLogic/semantics.xqy");
-var NS = require("ns");
+var NS = require("/lib/ns.js");
 var ns = new NS();
-xdmp.addResponseHeader("Access-Control-Allow-Origin", "*");
-var context = xdmp.getRequestField("context","");
+function strip(html){
+    return html.replace(/<.*?>/g,'').replace(/\"/g,'&#34;').replace(/\'/g,"&#39;")
+}
+let context = xdmp.getRequestField("context","publisher:_CognitiveWorld")
+let isIndex = xdmp.getRequestField("isIndex","false")
 let query = `${ns.sparql()}
 construct {
-    ?s a ?typeAnalog.
-    ?s ?analog ?oLabel.
-    ?s ?analog ?o.
-    ?o a ?otypeAnalog.
-    ?o ?oAnalog ?ooLabel.
-    ?o ?oAnalog ?oo.
-    }
-where {
-    bind(${context} as ?s)
     ?s ?p ?o.
-    ?s a ?type.
+    ?o ?op ?oo.
+    ?oo ?oop ?ooo.
+} where {
+    bind (${context} as ?s)
+    ?s ?p ?o.
     optional {
-    ?type class:hasAnalog ?typeAnalog.
+    ?o ?op ?oo.
     }
-    ?p property:hasAnalog ?analog.
     optional {
-        ?o term:prefLabel ?oLabel1.
-        }
-     bind(if(?oLabel1,?oLabel1,?o) as ?oLabel)
-     optional {
-    ?o ?pp ?oo.
-    ?o a ?otype.
-    optional {
-    ?otype class:hasAnalog ?otypeAnalog.
-    }
-    ?pp property:hasAnalog ?oAnalog.
-    optional {
-        ?oo term:prefLabel ?ooLabel1.
-        }
-     bind(if(?ooLabel1,?oLabel1,?oo) as ?ooLabel)
-     }
+    ?oo ?oop ?ooo.
+}
 }
 `;
-let triples = sem.sparql(query)
-// ns.convertToTurtle(triples)
-//var triples = Array.from(triples)
-var json = ns.jsonCondense(triples);
-var json2 = {};
-json2['@context'] = Object.create(json['@context']);
-json2['graph'] = {};
-Object.keys(json['graph']).forEach((subject)=>{
-    json2['graph'][subject]={};
-    Object.keys(json['graph'][subject]).forEach((predicate)=>{
-        json2['graph'][subject][predicate] = json['graph'][subject][predicate].length >1?json['graph'][subject][predicate].map((obj)=>obj.value):json['graph'][subject][predicate][0].value;
-        })
-    })
-json2
+let triples = Array.from(sem.sparql(query))
+let results = ns.jsonCondense(triples);
+let graph = results.graph;
+let cg = graph[context];
+let contextType = cg['rdf:type'][0].value;
+let customTemplate = graph[contextType].hasOwnProperty('class:hasSEOTemplate')?graph[contextType]['class:hasSEOTemplate'][0].value:null;
+let schemaType = graph[contextType].hasOwnProperty('class:hasSchemaOrgAnalog')?graph[contextType]['class:hasSchemaOrgAnalog'][0].value:contextType.split(':_')[1];
+let template = customTemplate?Array.from(xdmp.eval(customTemplate))[0]:Array.from(xdmp.invoke('/lib/seoTemplate.sjs'))[0] 
+let seo = `${template(graph,context,cg,schemaType)}`;
+// End SEO
+let seoData = {seo:seo,context:context,cg:JSON.stringify(cg,null,4)};
+seoData

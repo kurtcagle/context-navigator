@@ -4,6 +4,7 @@ var sem = require("/MarkLogic/semantics.xqy");
 var NS = require("/lib/ns.js");
 var ns = new NS();
 //?Class ?Property ?classDescription ?propertyDescription
+let graph = xdmp.getRequestField("graph","")||"";
 let query = `${ns.sparql()}
   select distinct ?class (?class1 as ?inheritsFrom) ?isRoot ?property ?classDescription ?propertyDescription 
   ?classLabel ?namespace ?prefix ?analog ?plural ?propertyLabel ?rangeClass ?rangeLabel ?datatype ?cardinality ?cardinalityLabel
@@ -11,6 +12,7 @@ let query = `${ns.sparql()}
   {{?class a class:_Class}
   UNION
   {?class a owl:Class}}
+  ${graph != ''?`?class class:hasGraph ?graph.`:''}
   ?class term:prefLabel ?classLabel.
   optional {
      ?class term:hasDescription ?classDescription.

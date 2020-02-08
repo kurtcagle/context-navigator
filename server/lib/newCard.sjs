@@ -27,8 +27,9 @@ ${activeCard.curie}
       term:hasPrimaryImageURL "${activeCard.image}"^^xsd:imageURL;
       term:hasExternalURL "${activeCard.externalURL}"^^xsd:anyURI;
       term:hasCreatedDate "${createdDate}"^^xsd:dateTime;
+      term:createdBy ${activeCard.user};
       term:hasLastModifiedDate "${createdDate}"^^xsd:dateTime;
-      term:hasPublicationStatus publicationStatus:_Draft;
+#      term:hasPublicationStatus publicationStatus:_Draft;
      ${activeCard.target != ''?`${activeCard.activePredicate} ${activeCard.target};`:''}
      ${(activeCard.type === 'class:_Class')?`rdfs:subClassOf class:_Term;`:''}      
      ${(activeCard.type === 'class:_Class')?`class:hasPrefix "${activeCard.prefix}"^^xsd:string;`:''}      
@@ -36,15 +37,15 @@ ${activeCard.curie}
      ${(activeCard.type === 'class:_Class')?`class:hasPluralName "${activeCard.plural}"^^xsd:string;`:''}      
      ${(activeCard.type === 'class:_Property')?`
         rdfs:domain ${activeCard.domain};
-        property:hasDomain  ${activeCard.domain};
         property:hasNodeKind ${activeCard.nodeKind};
         property:hasCardinality ${activeCard.cardinality};
         ${(activeCard.nodeKind === "nodeKind:_Literal")?
           `property:hasDatatype ${activeCard.datatype};`:
-          `rdfs:range ${activeCard.range};
-           property:hasRange ${activeCard.range};`
-          }
+          `rdfs:range ${activeCard.range};`
+          }          
         `:''}
+         ${activeCard.predicateEntries.map((property)=>
+             (property.nodeKind === "nodeKind:_Literal")?`${property.property} """${property.value}"""^^${property.datatype};`:`${property.property} ${property.value};`).join(' ')}  
        .
 }`;
 sem.sparqlUpdate(updateCard);

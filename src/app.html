@@ -3,13 +3,13 @@
   <require from="./modalCustomElement"></require>
   <require from="ObjectKeysValueConverter"></require>
   <require from="SortedObjectKeysValueConverter"></require>
-  <div class="outer ${theme}">
-  <style type="text/css">${activeCSS}</style>
+  <div class="outer ${config.theme}">
+  <style type="text/css">${config.activeCSS}</style>
   <div class="container ${wait?'wait':''}">
   <div class="header">
-  	  <div class="headerBlock" click.trigger="fetchContext(defaultPage,'card')">
-	      <img src="${defaultIcon}" class="headerLogo link"/>
-	  	  <div class="bannerText">${defaultLabel}</div>
+  	  <div class="headerBlock" click.trigger="fetchContext(config.defaultPage,'card')">
+	      <img src="${config.defaultIcon}" class="headerLogo link"/>
+	  	  <div class="bannerText">${config.defaultLabel}</div>
   	 </div>
   	 <div class="headerBlock">
 	  	  <input type="search" value.bind="q" input.delegate="fetchSearch()" placeholder="Search"/>
@@ -23,7 +23,7 @@
 	   	  			<option value="class:_Class">Class</option> 
 	   	  			<option value="class:_Property">Property</option> 
 	   	  			<option disabled="disabled" value="">──────────────────</option>
-	   	  			<option repeat.for="classType of instanceList['class:_Class']['rdf:type']" value.bind="classType.curie">${classType.label}</option>
+	   	  			<option repeat.for="classType of instanceList['class:_Class']['rdf:type']" value.bind="classType.curie" if.bind="(activeGraph === '') || (activeGraph === classType.graph)">${classType.label}</option>
 	   	  		</select>
 	   	  		<select value.bind="classAction" class="classSelector" change.delegate="activateClass(activeClass,classAction)">
 	   	  			<option value="classAction:_View">View</option> 
@@ -32,6 +32,12 @@
 	   	  		<div class="button" click.trigger="activateClass(activeClass,classAction)">Go</div>
 	   	  </div>
    	  </div>	
+      <div class="historyContainer">
+	  		<div class="label">History</div>
+	  		<select value.bind="context" class="classSelector"  change.delegate="fetchContext(context)">
+	  			<option repeat.for="item of history" value.bind="item.context">${item.label}</option>
+	  		</select>
+	  </div>
    	  <div class="headerBlock mobile">
    	  	<div class="userFullName">${loginData.data['term:prefLabel'][0].value}</div>
    	  	<div class="button mobile" click.trigger="login()" if.bind="!loginData.status">Log in</div>
@@ -46,17 +52,16 @@
 <!--	<div class="byline"> </div>
 	<div class="topics"> </div>
 	<div class="previousPage"></div>-->
-  </div>	
-  <div class="centerPane">
-  <div class="display">
-  	  <div class="modeFrame">
+  </div>
+
+  <div class="modeFrame">
   	  <div class="modeButtons">
   	  	   <div class="button" click.trigger="showMenu=!showMenu">&#x2261; Menu</div>
   	  	   <div class="mainMenu ${showMenu?'visible':''}" click.trigger="showMenu=false" blur.trigger="showMenu=false"> </div>
   	  	   <!--<div class="button ${mode==='list'?'selected':''}" click.trigger="setMode('list')">Links</div>-->
   	  	   <div class="button ${mode==='card'?'selected':''}" click.trigger="setMode('card')">Content</div>
   	  	   <div class="button ${mode==='properties'?'selected':''}" click.trigger="setMode('properties')">Properties</div>
-  	  	   <div class="button ${mode==='graph'?'selected':''}" click.trigger="setMode('graph')">Graph</div>
+  	  	   <div class="button ${mode==='graph'?'selected':''}" click.trigger="setMode('graph')">Visualize</div>
 <!--  	  	   <div class="button ${mode==='images'?'selected':''}" click.trigger="setMode('images')">Images</div>-->
 <!--  	  	   <div class="button ${mode==='compliance'?'selected':''}" click.trigger="setMode('compliance')">Compliance</div> -->
 <!--  	  	   <div class="button ${mode==='ingestion'?'selected':''}" click.trigger="setMode('ingestion')">Ingestion</div>-->
@@ -75,7 +80,10 @@ Namespaces</div>
 		<div class="button" click.trigger="cache='cached'" if.bind="loginData.status">Cache</div>
 
    	  </div>
-      </div>
+  </div>
+
+  <div class="centerPane">
+  <div class="display">
 
 
 <!--	<div class="properties"  if.bind="mode==='properties' && !cardEdit">
@@ -107,8 +115,8 @@ Namespaces</div>
 		<div class="buttons">
 			<div class="button" click.trigger="editCardProperties()" if.bind="userValidated">Edit</div>
 		</div>
-		<div class="property" repeat.for="property of predicates" if.bind="g[context][property.curie].length > 0">
-		  	<div class="label" title="${property.curie}"
+		<div class="property" repeat.for="property of predicates" if.bind="(g[context][property.curie].length > 0) && (property.order != null)">
+		  	<div class="label" title="${property.curie}" title="${property.description}. Curie = ${property.curie}"
 		  	>${property.fullLabel}</div>
 		  	<div class="valueBlock">
 			  	<div class="value" repeat.for="item of g[context][property.curie]">
@@ -116,22 +124,20 @@ Namespaces</div>
 			  		</span>
 			  		<span class="value" if.bind="property.nodeKind === 'nodeKind:_Literal'" title="${item.datatype}"><span innerhtml="${displayLiteral(item)}"
 			  			css="item.datatype.startsWith('xsd:textLiteral')?'display:block;word-space:pre':''"></span> 
-			  			<span class="link" click.trigger="fetchContext(item.datatype)" if.bind="g[item.datatype]['term:prefLabel'].length > 0 ">[${g[item.datatype]["term:prefLabel"][0].value}]</span> <span if.bind="!$last && $index != 0">, </span>
+			  			<span class="link" click.trigger="fetchContext(item.datatype)" if.bind="g[item.datatype]['term:prefLabel'].length > 0 ">&nbsp;[${g[item.datatype]["term:prefLabel"][0].value}]</span> <span if.bind="!$last && $index != 0">, </span>
 			  		</span>
 			  	</div>
 		    </div>
 		  </div>
 		</div>
 
-	<div class="properties"  if.bind="mode==='properties' && cardEdit">
+<!--	<div class="properties"  if.bind="mode==='properties' && cardEdit">
 		<div class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</div>
 		<div class="buttons">
 			<div class="button" click.trigger="saveCardProperties()">Save</div>
 			<div class="button" click.trigger="addProperty()">Add Property</div>
 			<div class="button" click.trigger="revertCard()">Revert</div>
 		</div>
-<!--		<div class="property" repeat.for="property of keys(g[context], ['term:prefLabel','term:hasPrimaryImageURL','term:hasDescription','term:inGlossary','term:hasSearchable'])"
-		    >-->
 		    <div class="property" repeat.for="property of keys(g[context], ['term:prefLabel','term:hasPrimaryImageURL','term:hasDescription','term:inGlossary','term:hasSearchable'])"
 		    >
 
@@ -139,11 +145,6 @@ Namespaces</div>
 		  	<div class="valueBlock">
 			  	<div class="value" repeat.for="item of wrapArray(g[context][property])">
 			  		<div class="link" if.bind="item.type==='uri'" if.bind="linkPropertyList[property]||[]>0">
-			  			<!--<select value="${item.value}" mouseover.trigger="getTerms(property)" if.bind="!item.deleted"
-			  					change.delegate="updateLink(context,property,item,$event)">
-			  				<option value="${item.value}" selected="selected">${item.label}</option>
-			  				<option repeat.for="term of linkPropertyList[property]||[]" value.bind="term.context" if.bind="term.context != item.value">${term.value}</option>
-			  			</select>-->
 			  			<span class="link">${item.label}</span>
 			  			<button click.trigger="deleteItem($index,g[context][property])">X</button>
 			  		</div>
@@ -222,18 +223,118 @@ Namespaces</div>
 			  		</span>
 			  	</div>
 			  	<button click.trigger="addProperty(property)"><span>&#8226;</span></button>
-				<!--<button click.trigger = "addExistingPropertyValue(property)" repeat.for="cardinality of g[property]['property:hasCardinality']"
-				 if.bind="cardinality.value === 'cardinality:_ZeroOrMore' || cardinality.value === 'cardinality:_OneOrMore'">+</button>-->
 		    </div>
 		  </div>
+		</div> -->
+
+
+	<div class="properties"  if.bind="mode==='properties' && cardEdit">
+		<div class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</div>
+		<div class="buttons">
+			<div class="button" click.trigger="saveCardProperties()">Save</div>
+			<div class="button" click.trigger="addProperty()">Add Property</div>
+			<div class="button" click.trigger="revertCard()">Revert</div>
 		</div>
+		    <div class="property" repeat.for="property of predicates"  if.bind="property.order != null">
+		  	<div class="label" title="${property.description}. Curie = ${property.curie}">${property.fullLabel}</div>
+		  	<div class="valueBlock">
+			  	<div class="value" repeat.for="item of wrapArray(g[context][property.curie])">
+			  		<div class="link" if.bind="item.type==='uri'" if.bind="linkPropertyList[property.curie]||[]>0">
+			  			<span class="link">${item.label}</span>
+			  			<button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</div>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype === 'currency:_USD' || item.datatype === 'xsd:currency_usd'"  title="${item.datatype}">
+			  			$<input type="text" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype === 'currency:_EUR'" title="${item.datatype}">
+			  			&#8364;<input type="text" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype === 'xsd:dateTime'" title="${item.value}"> 
+			  			<input type="dateTime" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype === 'xsd:date'" title="${item.value}"> 
+			  			<input type="date" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<div class="valueImages" if.bind="item.type==='literal' && item.datatype === 'xsd:imageURL'" title="${item.value}">
+			  			<img src="${item.value}" class="imageMedium"/> 
+			  			<div><input type="text" value.bind = "item.value" class="longInput"/>
+			  		    <button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  			</div>
+			  		</div>
+			  		<div class="value" if.bind="item.type==='literal' && item.datatype === 'xsd:anyURI'" title="${item.value}">
+			  			<div><input type="text" value.bind = "item.value" class="longInput" type="url"/>
+			  		    <button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  			</div>
+			  		</div>
+			  		<div class="value" if.bind="item.type==='literal' && item.datatype === 'xsd:anyURL'" title="${item.value}">
+			  			<div><input type="text" value.bind = "item.value" class="longInput"/>
+			  		    <button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  			</div>
+			  		</div>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('identifier:')" title="${item.value}">
+			  			<input type="text" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('unit:')" title="${item.value}">
+			  			<input type="text" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:string')" title="${item.value}">
+			  			<input type="text" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:email')" title="${item.value}">
+			  			<input type="text" value.bind = "item.value" type="email"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:telephone')" title="${item.value}">
+			  			<input type="text" value.bind = "item.value" type="tel"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:curie')" title="${item.value}">
+			  			<input type="text" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:hours')" title="${item.value}">
+			  			<input type="text" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:integer')" title="${item.value}">
+			  			<input type="number" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:float')" title="${item.value}">
+			  			<input type="number" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:currency_usd')" title="${item.value}">
+			  			<input type="number" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:htmlLiteral')" title="${item.value}">
+				  		<div class="bodyEditor" innerhtml.two-way="item.value" contenteditable="true"></div>
+				  		<button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:textLiteral')" title="${item.value}">
+				  		<textarea class="bodyEditor" value.bind="item.value"></textarea>
+				  		<button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:gYear')" title="${item.value}">
+			  			<input type="number" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:hexColor')" title="${item.value}">
+			  			<input type="color" value.bind = "item.value"/><input type="string" value.bind="item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:boolean')" title="${item.value}">
+			  			<select value.bind="item.value">
+			  				<option value="true">Yes</option>
+			  				<option value="false">No</option>
+			  			</select><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  	</div>
+			  	<button click.trigger="addProperty(property.curie)"><span>&#8226;</span></button>
+		    </div> 
+		  </div>
+		</div>
+
 
 	  <div class="list" if.bind="(['list','images']).includes(mode)">
 	  	<!--<div class="type link" click.trigger="fetchContext(g[context]['rdf:type'][0].value,'list')">${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>-->
 		<h1 class="propertyContextLabel">${g[context]['term:prefLabel'][0].value||'Loading ...'}</h1>
 		<div class="imageHeader">
 			<div>
-				<img class="cardImage" src="${g[context]['term:hasPrimaryImageURL'][0].value||missingImage}"/>
+				<img class="cardImage" src="${g[context]['term:hasPrimaryImageURL'][0].value||config.missingImage}"/>
 				<div class="largeColorSwatch" css="background-color:${g[context]['color:hasColorHexValue'][0].value}" if.bind="g[context].hasOwnProperty('color:hasColorHexValue')">&nbsp;</div>
 			</div> 
 		  	<div class="summaryContainer">
@@ -282,7 +383,7 @@ Namespaces</div>
 		  	<!--<div class="button" click.trigger="newCard(g[activeLinkPredicate]['rdfs:domain'][0].value,false,context)" if.bind="(!context.startsWith('class:')) && userRole.has('accountRole:_Create')">New ${g[g[activeLinkPredicate]['rdfs:domain'][0].value]['term:prefLabel'][0].value}</div>-->
   		  	<div class="button" click.trigger="newCard(preferredClass.curie,false,preferredProperty||activeLinkPredicate,context)" if.bind="(!context.startsWith('class:')) && userRole.has('accountRole:_Create')" repeat.for="preferredClass of getPreferredClasses(context)">New ${preferredClass.label}</div>
 	 		<div class="button" click.trigger="editCard('edit')" if.bind="userRole.has('accountRole:_Edit')">Edit</div>
-			<div class="button" click.trigger="editCard('duplicate')" if.bind="userRole.has('accountRole:_Edit')">Duplicate</div>
+			<!--<div class="button" click.trigger="editCard('duplicate')" if.bind="userRole.has('accountRole:_Edit')">Duplicate</div>-->
 			<div class="button" click.trigger="deleteCard()" if.bind="userRole.has('accountRole:_Delete') && (context != 'class:_Class') && (context != 'class:_Property')">Delete</div>
  		  	
 		  	<div class="button" click.trigger="deleteClassItems(false)" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Delete')  && (context != 'class:_Class') && (context != 'class:_Property')">Clear Items In ${g[context]['term:prefLabel'][0].value}</div>
@@ -336,7 +437,7 @@ Namespaces</div>
 	  </div>
 	  	<div class="linksContainer"  if.bind="mode === 'list'">
 	  		<div class="linkContainer" repeat.for="item of activeLinksData.data" if.bind="loginData.status || (!loginData.status && item.publicationStatus === 'publicationStatus:_Published')">
-	  			<div class="link iconContainer"><div class="iconSubcontainer"><img src="${item.image||missingImage}" click.trigger="fetchContext(item.link,'list')" class="linkImage"/></div>
+	  			<div class="link iconContainer"><div class="iconSubcontainer"><img src="${item.image||config.missingImage}" click.trigger="fetchContext(item.link,'list')" class="linkImage"/></div>
 	  			<!--<div  class="link colorIcon "
 	  			if.bind="g[link].hasOwnProperty('color:hasColorHexValue')"
 	  			 click.trigger="fetchContext(link,'list')"
@@ -356,7 +457,7 @@ Namespaces</div>
 	 <div class="imageFrame" if.bind="mode === 'images'">
 	  	<div repeat.for="item of activeLinksData.data" class="imageContainer">
 	  		<div class="imagesEntry">
-	  		<img src.bind="item.image||missingImage" click.trigger="fetchContext(item.link,'list')" class="thumbImage link"
+	  		<img src.bind="item.image||config.missingImage" click.trigger="fetchContext(item.link,'list')" class="thumbImage link"
 	  		title.bind="item.linkLabel"/>
 	  		<!--<div click.trigger="fetchContext(item.link,'list')" class="link imageCaption">${item.linkLabel}.&nbsp;</div>-->
 	  		</div>
@@ -394,7 +495,7 @@ Namespaces</div>
 	  	<div class="button" click.trigger="newCard(preferredClass.curie,false,preferredProperty||activeLinkPredicate,context)" if.bind="(!context.startsWith('class:'))" repeat.for="preferredClass of getPreferredClasses(context)">New ${preferredClass.label}</div>
 		<!--<div class="button" click.trigger="editCard('edit')" if.bind="userRole.has('accountRole:_Edit')">Edit</div>-->
 		<div class="button" click.trigger="editCard('edit')" if.bind="userRole.has('accountRole:_Edit')">Edit</div>
-		<div class="button" click.trigger="editCard('duplicate')" if.bind="userRole.has('accountRole:_Edit')">Duplicate</div>
+		<!--<div class="button" click.trigger="editCard('duplicate')" if.bind="userRole.has('accountRole:_Edit')">Duplicate</div>-->
 		<div class="button" click.trigger="deleteCard()" if.bind="userRole.has('accountRole:_Delete') && (context != 'class:_Class') && (context != 'class:_Property')">Delete</div>
 		<!--<div class="button" click.trigger="newCard()" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Create')">New ${g[context]['term:prefLabel'][0].value}</div>-->
 		<div class="button" click.trigger="newCard(context,true)" if.bind="context.startsWith('class:')">New Property</div>
@@ -408,31 +509,55 @@ Namespaces</div>
 	</div>
 	<div class="imageHeader">
 		<div>
-			<img class="cardImage" src="${g[context]['term:hasPrimaryImageURL'][0].value||missingImage}"/>
+			<img class="cardImage" src="${g[context]['term:hasPrimaryImageURL'][0].value||g[g[context]['rdf:type'][0].value]['term:hasPrimaryImageURL'][0].value||config.missingImage}"/>
 			<div class="largeColorSwatch" css="background-color:${g[context]['color:hasColorHexValue'][0].value}" if.bind="g[context].hasOwnProperty('color:hasColorHexValue')">&nbsp;</div>
+				<h1 title="${context}">${g[context]?g[context]['term:prefLabel'][0].value:"Loading"}</h1>
+				<div class="description  expanded">
+					<div class="bodyDisplay" repeat.for="descrKey of ['term:hasDescription']" innerHTML="${filterBody(g[context][descrKey][0].value)}"></div>
+					<div class="button" click.trigger="launchURL(g[context]['term:hasExternalURL'][0].value)"
+					if.bind="g[context]['term:hasExternalURL'][0].value != ''">See Source</div>
+				</div>
 		</div>
 		<div> 
-		<ul class="backLinks" ><span class="title">${g[context]['term:prefLabel'][0].value}</span>
-			<li class="backLink" 
+		<ul class="backLinks" ><div class="title link" click.trigger="fetchContext(context,'card')" title="Click to refresh page.">${g[context]['term:prefLabel'][0].value}</div>
+				
+<!--			<li class="backLink" 
 				repeat.for="predicate of keys(g[context],['term:hasPublicationStatus'])"
 				if.bind="g[context][predicate][0].type === 'uri'">
 				<span>${g[predicate]['term:prefLabel'][0].value}</span>
 				<span class="link" click.trigger="fetchContext(object.value,'card')"
 				 repeat.for="object of wrapArray(g[context][predicate])"
 				>${g[object.value]['term:prefLabel'][0].value}<span if.bind="!$last">, </span></span>
-			</li>
+			</li>-->
+			<div class="dlg-property backLink" repeat.for="property of predicates" if.bind="property.order != null">
+				<div class="dlg-label" title="${property.description}. Curie = ${property.curie}" click.trigger="fetchContext(property.curie)">${property.label}</div>
+				<div class="dlg-value">
+					<span repeat.for="item of g[context][property.curie]"> 
+					<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal'" innerhtml.bind="displayLiteral(item)"></div>
+					<!--<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:date'"><input type="date" value.two-way="property.value" class="longInput"/></div>
+					<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:dateTime'"><input type="dateTime" value.two-way="property.value" class="longInput"/></div>
+					<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:integer'"><input type="number" value.two-way="property.value" class="longInput"/></div>
+					<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'currency:_usd'"><input type="number" value.two-way="property.value" class="longInput" pattern="^\d*(\.\d{2}$)?"/></div>-->
+					<span class="dlg-value link" if.bind="property.nodeKind === 'nodeKind:_IRI'" click.trigger="fetchContext(item.value)">${g[item.value]['term:prefLabel'][0].value}</span>
+					<span if.bind="!$last">, </span>
+					</span>
+				</div>
+			</div>
+			 <div class="button ${mode==='properties'?'selected':''}" click.trigger="setMode('properties')">Properties</div>
 		</ul>
+
+
 		<!--<div class="button" click.trigger="fetchContext(context,'list')">Links</div>-->
   	  	<!--<div class="button ${mode==='graph'?'selected':''}" click.trigger="setMode('graph')">Graph</div>-->
 		</div>
 	</div>
   	<!--<div class="type link" click.trigger="fetchContext(g[context]['rdf:type'][0].value,'list')">${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>-->
-	<h1>${g[context]?g[context]['term:prefLabel'][0].value:"Loading"}</h1>
+<!--	<h1>${g[context]?g[context]['term:prefLabel'][0].value:"Loading"}</h1>
 	<div class="description  expanded">
 		<div class="bodyDisplay" repeat.for="descrKey of ['term:hasDescription']" innerHTML="${filterBody(g[context][descrKey][0].value)}"></div>
 		<div class="button" click.trigger="launchURL(g[context]['term:hasExternalURL'][0].value)"
 		if.bind="g[context]['term:hasExternalURL'][0].value != ''">See Source</div>
-	</div>
+	</div>-->
 	<hr/>
     </div>
 
@@ -441,7 +566,7 @@ Namespaces</div>
 	  	 <!--<div class="button" title="This hides or shows the properties that dictate what gets seen in the list view. This is useful for better exploring the information space."
 	  	 click.trigger="showProperties = ! showProperties" class="settingsIcon"><img src="https://cdn3.iconfinder.com/data/icons/musthave/256/Settings.png" class="settingsIcon"/></div>-->
 	  	 <select value.bind="activeLinkPredicate" change.delegate="activateTab(activeLinkPredicate)" click.trigger="activateTab(activeLinkPredicate)"  class="classSelector" if.bind="showProperties">
-			 <option  repeat.for="predicate of activePredicates" if.bind="showProperties" value.bind="predicate.curie" ><div class="predicateTarget">${predicate.dropLabel}</div></option>
+			 <option  repeat.for="predicate of activePredicates" if.bind="showProperties" value.bind="predicate.curie" title="${predicate.curie}"><div class="predicateTarget">${predicate.dropLabel}</div></option>
 	  	 </select>
 	  </div>	    
 	  <div class="listRefine" if.bind="activePredicates.length>0">
@@ -474,7 +599,7 @@ Namespaces</div>
      	<div class="altLinksContent" innerhtml.bind="linksContent"></div>
 	  	<div class="linksContainer"  if.bind="mode === 'card' && linksContent === ''">
 	  		<div class="linkContainer" repeat.for="item of activeLinksData.data" if.bind="loginData.status || (!loginData.status && item.publicationStatus === 'publicationStatus:_Published')">
-	  			<div class="link iconContainer"><div class="iconSubcontainer"><img src="${item.image||missingImage}" click.trigger="fetchContext(item.link,'card')" class="linkImage"/></div>
+	  			<div class="link iconContainer"><div class="iconSubcontainer"><img src="${item.image||item.typeImage||config.missingImage}" click.trigger="fetchContext(item.link,'card')" class="linkImage"/></div>
 	  			<!--<div  class="link colorIcon "
 	  			if.bind="g[link].hasOwnProperty('color:hasColorHexValue')"
 	  			 click.trigger="fetchContext(link,'list')"
@@ -495,7 +620,7 @@ Namespaces</div>
 	 <div class="imageFrame" if.bind="mode === 'images'">
 	  	<div repeat.for="item of activeLinksData.data" class="imageContainer">
 	  		<div class="imagesEntry">
-	  		<img src.bind="item.image||missingImage" click.trigger="fetchContext(item.link,'card')" class="thumbImage link"
+	  		<img src.bind="item.image||config.missingImage" click.trigger="fetchContext(item.link,'card')" class="thumbImage link"
 	  		title.bind="item.linkLabel"/>
 	  		<!--<div click.trigger="fetchContext(item.link,'list')" class="link imageCaption">${item.linkLabel}.&nbsp;</div>-->
 	  		</div>
@@ -511,17 +636,17 @@ Namespaces</div>
   <div class="card"  if.bind="mode==='card' && cardEdit === true">
 	<div class="buttons">
 		<div class="button" click.trigger="saveCardProperties()" if.bind="editMode === 'edit'">Save</div>
-		<div class="button" click.trigger="saveDuplicateCardProperties()" if.bind="editMode === 'duplicate'">Save</div>
+		<!--<div class="button" click.trigger="saveDuplicateCardProperties()" if.bind="editMode === 'duplicate'">Save</div>-->
 		<div class="button" click.trigger="revertCard()">Cancel</div>
 	</div>
 	<div class="property">
 		<div class="dlg-label">Title</div>
-		<div if.bind="editMode === 'duplicate'" ><input type="text" class="cardTitle longInput" value.bind="activeCard.title" input.delegate="generateEntityId(context)"></div>
-		<div if.bind="editMode === 'edit'" ><input type="text" class="cardTitle longInput" value.bind="activeCard.title"></input></div>
+		<!--<div if.bind="editMode === 'duplicate'" ><input type="text" class="cardTitle longInput" value.bind="activeCard.title" input.delegate="generateEntityId(context)"></div>-->
+		<div if.bind="editMode === 'edit'" ><input type="text" class="cardTitle longInput" value.bind="activeCard.title"></input><div class="button" click.trigger="generateEntityId(activeCard.curie)">Clone</div></div>
 	</div>
 	<div class="property">
 		<div class="dlg-label">Curie</div>
-		<div class="curie"><input value.bind="activeCard.curie"></div>
+		<div class="curie"><input value.bind="activeCard.curie"/></div>
 <!--		<div class="curie" contenteditable="true"  innerhtml.two-way="activeCard.curie" placeholder="Condensed URI or Curie"></div>-->
 	</div>
 	<img class="cardImage" src="${activeCard.image}"/>
@@ -839,10 +964,15 @@ Namespaces</div>
 	<div class="dlg-property" repeat.for="property of templateProperties" if.bind="property.order != null">
 		<div class="dlg-label">[${property.domainLabel}] ${property.label}</div>
 		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:string'"><input type="string" value.two-way="property.value" class="longInput"/></div>
+		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:anyURI'"><input type="url" value.two-way="property.value" class="longInput"/></div>
+		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:email'"><input type="email" value.two-way="property.value" class="longInput"/></div>
+		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:telephone'"><input type="tel" value.two-way="property.value" class="longInput"/></div>
 		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:date'"><input type="date" value.two-way="property.value" class="longInput"/></div>
 		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:dateTime'"><input type="dateTime" value.two-way="property.value" class="longInput"/></div>
 		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:integer'"><input type="number" value.two-way="property.value" class="longInput"/></div>
+		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:currency_usd'"><input type="number" value.two-way="property.value" class="longInput" pattern="^\d*(\.\d{2}$)?"/></div>
 		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_IRI'"><select value.two-way="property.value" tabindex="0">
+			<option value="">Select ${property.rangeLabel}</option>
    	  		<option repeat.for="entity of property.entities" value.bind="entity.curie">${entity.label}</option>
 		</select></div>
 	</div>	
@@ -915,21 +1045,30 @@ Namespaces</div>
 			<div class="dlg-label">Select Property</div>
 			<div class="dlg-value"><select value.bind="selectedProperty" change.delegate="activePropertySelected($event)" tabindex="0">
 				<option value="">None Selected</option>
-				<option value.bind="property.predicate" repeat.for="property of availableProperties">[${property.domainLabel}] ${property.label}</option>
+				<option value.bind="property.predicate" repeat.for="property of availableProperties">${property.domainLabel+' '}${property.label}</option>
 			</select></div>
 		</div>
 		<div class="dlg-property" if.bind="activeProperty.nodeKind === 'nodeKind:_IRI'">
 			<div class="dlg-label">Select Value</div>
 			<div class="dlg-value"><select value.bind="activeProperty.value" tabindex="0">
 				<option value="">None Selected</option>
-				<option value.bind="value.curie" repeat.for="value of activePropertyValues">${value.label}</option>
+				<option value.bind="value.curie" repeat.for="value of activePropertyValues"><span if.bind="!((value.typeLabel===null)||(value.typeLabel===''))">${value.typeLabel+' '}  </span>${value.label}</option>
 			</select>
 			<div class="button" click.trigger="launchPage(activeProperty.range,'card')">+</div>
+			<div class="button" click.trigger="setPropertyListValue(activeProperty.predicate)">Refresh List</div>
 		</div>
 		</div>
 		<div class="dlg-property" if.bind="activeProperty.nodeKind === 'nodeKind:_Literal' && activeProperty.datatype ==='xsd:string'" >
 			<div class="dlg-label">Value:</div>
 			<div class="dlg-value"><input value.bind="activeProperty.value" tabindex="0"/></div>
+		</div>
+		<div class="dlg-property" if.bind="activeProperty.nodeKind === 'nodeKind:_Literal' && activeProperty.datatype ==='xsd:telephone'" >
+			<div class="dlg-label">Value:</div>
+			<div class="dlg-value"><input value.bind="activeProperty.value" tabindex="0" type="tel"/></div>
+		</div>
+		<div class="dlg-property" if.bind="activeProperty.nodeKind === 'nodeKind:_Literal' && activeProperty.datatype ==='xsd:email'" >
+			<div class="dlg-label">Value:</div>
+			<div class="dlg-value"><input value.bind="activeProperty.value" tabindex="0" type="email"/></div>
 		</div>
 		<div class="dlg-property" if.bind="activeProperty.nodeKind === 'nodeKind:_Literal' && activeProperty.datatype ==='xsd:curie'" >
 			<div class="dlg-label">Value:</div>
@@ -966,14 +1105,14 @@ Namespaces</div>
 		</div>
 		<div class="dlg-property" if.bind="activeProperty.nodeKind==='nodeKind:_Literal' && activeProperty.datatype === 'xsd:anyURI'" title="${activeProperty.value}">
 			<div class="dlg-label">URL:</div>
-  			<div><input type="text" value.bind = "activeProperty.value" class="longInput" tabindex="0"></input></div>
+  			<div><input type="text" value.bind = "activeProperty.value" class="longInput" tabindex="0" type="url"></input></div>
   		</div>
 		<div class="dlg-property" if.bind="activeProperty.nodeKind==='nodeKind:_Literal' && activeProperty.datatype === 'xsd:date'" title="${activeProperty.value}">
-			<div class="dlg-label">URL:</div>
+			<div class="dlg-label">Date:</div>
   			<div><input type="date" value.date = "activeProperty.value" class="longInput" tabindex="0"></input></div>
   		</div>
 		<div class="dlg-property" if.bind="activeProperty.nodeKind==='nodeKind:_Literal' && activeProperty.datatype === 'xsd:dateTime'" title="${activeProperty.value}">
-			<div class="dlg-label">URL:</div>
+			<div class="dlg-label">Date-Time:</div>
   			<div><input type="dateTime" value.date = "activeProperty.value" class="longInput" tabindex="0"></input></div>
   		</div>
     </div>

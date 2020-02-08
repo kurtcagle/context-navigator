@@ -1,5 +1,5 @@
 function strip(html){
-    return html.replace(/<.*?>/g,'').replace(/\"/g,'\"').replace(/\'/g,"\'")
+    return html.replace(/<.*?>/g,'').replace(/\"/g,'&#34;').replace(/\'/g,"&#39;")
 }
 
 let template = (graph,context,cg,schemaType)=>`{
@@ -28,7 +28,7 @@ let template = (graph,context,cg,schemaType)=>`{
     "headline": "${cg['term:prefLabel'][0].value}",
     ${cg.hasOwnProperty('term:hasCreatedDate')?`"datePublished": "${cg['term:hasCreatedDate'][0].value}",`:''}
     "dateModified": "${cg['term:hasLastModifiedDate'][0].value}",
-    "articleBody":"${strip(cg['term:hasDescription'][0].value)}",  
+    "articleBody":"${strip(strip(cg['term:hasDescription'][0].value))}",  
     "url": "http://cognitiveworlds.com/?context=${context}",
     "publisher": {
         "@type": "Organization",
@@ -50,7 +50,7 @@ let template = (graph,context,cg,schemaType)=>`{
         }`)},`:''}
     "image": {
     "@type": "ImageObject",
-    "url": "${cg['term:hasPrimaryImageURL'][0].value}"
+    "url": "${cg.hasOwnProperty('term:hasPrimaryImageURL')?cg['term:hasPrimaryImageURL'][0].value:''}"
     }
 }`;
 template

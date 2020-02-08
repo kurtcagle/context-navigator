@@ -31,10 +31,11 @@ var sortModes = [
 let sortModeItem = sortModes.find((sortMode)=>sortMode.value===sort)
 let sortMode = (sortModeItem != null)?sortModeItem.filter:'desc(?lastModifiedDate)';
 let pageOffset = (page - 1) * pageSize;
-let body = `{
+let body = `
     ${predicate != 'null'?`bind(${predicate} as ?predicate)`:''}
     ${predicate != 'null'?`?link ${predicate}${transitive === 'plus'?"+":transitive === 'star'?'*':''} ${context}.`:`?link ?predicate ${context}.`}
     ?link term:prefLabel ?linkLabel1 .
+    ?link a ?class.
     bind(fn:normalize-space(?linkLabel1) as ?linkLabel)
     ${constraintsArr.map((constraint)=>`?link ${constraint[0]} ${constraint[1]}.`).join('\n')}
     optional {
@@ -54,7 +55,6 @@ let body = `{
     }
     optional {
 #        ?link term:hasOrder ?ordinal1.
-        ?link a ?class.
         ?class term:hasPreferredSortProperty ?sortProperty.
         ?link ?sortProperty ?ordinal1.
     }
@@ -65,16 +65,18 @@ let body = `{
         ?predicate term:prefLabel ?predicateLabel.
     }
     
-#    optional {
-#        ?link rdf:type ?linkType.
-#    }
+    optional {
+        optional {
+            ?class term:hasPrimaryImageURL ?typeImage.
+        }
+    }
 
     bind(coalesce(?ordinal1,0) as ?ordinal)
     ${qList.map((term)=>`filter(regex(?linkLabel,'${term}','i'))`).join('\n')}
-}`
+`
 var sparql = `${ns.sparql()}
 prefix fn: <http://www.w3.org/2005/xpath-functions#>
-select distinct ?link ?linkLabel ?predicate ?predicateLabel ?image ?lastModifiedDate ?createdDate ?description ?ordinal ?publicationStatus ?summary where  {
+select distinct ?link (?class as ?linkType) ?linkLabel ?predicate ?predicateLabel ?image ?typeImage ?lastModifiedDate ?createdDate ?description ?ordinal ?publicationStatus ?summary where  {
 ${body}
 } order by ${sortMode} limit ${pageSize} offset ${pageOffset}`
 let nodes = sem.sparql(sparql);
@@ -90,6 +92,25 @@ let links = Array.from(ns.cure(nodes));
 
 let numPages = Math.ceil((count - 1) / pageSize);
 let results = {context:context,count:count,timestamp:(new Date()).toISOString(),page:page,pageSize:pageSize,numPages:numPages,data:links};
+let templateQuery = `${ns.sparql()}
+select ?script where {
+    ?linksTemplate a class:_LinksTemplate.
+    ?linksTemplate linksTemplate:hasTemplateProperty ${predicate}.
+    ?linksTemplate linksTemplate:hasTemplateScript ?script.
+    }`
+   let scripts = predicate != 'null'?Array.from(sem.sparql(templateQuery)):[];
+if (scripts.length > 0){
+    let script = scripts[0].script;
+    results.content = xdmp.eval(script,{context:context,predicate:predicate})||"";
+    results.scriptCount = 1;
+} else {
+//    results.script = null;
+    results.content = {content:""};
+    results.scriptCount = 0;
+}
+results.sparql = sparql;
+//results.script = templateQuery;
+
+xdmp.addResponseHeader("Content-Type","application/json");
 xdmp.addResponseHeader("Content-Encoding","gzip")
 xdmp.gzip(results)
-

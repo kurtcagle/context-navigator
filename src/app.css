@@ -52,13 +52,6 @@ body  {
 	border:var(--boundary);
 }
 
-.containerOld {
-	display:grid;
-	grid-template-areas: "header" "body";
-	grid-template-columns: 100%;
-	grid-template-rows:50px 1fr;
-}
-
 .container {
 	display:flex;
 	flex-direction:column;
@@ -237,7 +230,8 @@ body  {
 	margin-bottom:10pt;
 	min-height:80px;
 	display:flex;
-	flex-direction:column;
+	flex-direction:row;
+	justify-content:flex-start;
 	border-bottom:solid 1pt var(--contextLinkColor);
 	padding-bottom:5pt;
 	}
@@ -324,7 +318,7 @@ body  {
 	background-color:white;
 	width:99%;
 	z-index:1;
-	box-shadow:4px 4px 4px rgba(0,0,0,0.7);
+//	box-shadow:4px 4px 4px rgba(0,0,0,0.7);
 }
 .headerBlock {
     display:flex;
@@ -456,6 +450,14 @@ body  {
 	width:1fr;
 	height:40px;
 	padding-top:5px;
+	position:fixed;
+	left:0;
+	top:50px;
+	width:100%;
+	border-top:groove 1px lightGray ;
+	background-color:white;
+	z-index:1;
+	box-shadow:4px 4px 4px rgba(0,0,0,0.7);
 }
 .pager {
 	padding-bottom:5px ;
@@ -617,6 +619,9 @@ table td.inlineLabel {
  .dlg-value {
  	/* border:inset 2px lightGray;*/
  }
+ .dlgBody {
+
+ }
 
  .bodyEditor {
 /* 	max-height:400px;*/
@@ -632,6 +637,7 @@ table td.inlineLabel {
 
 .bodyDisplay img {
 	max-width:100%;
+	padding:18pt;
 }
 
 .newModalBE {
@@ -861,14 +867,21 @@ table td.inlineLabel {
 	display:block;
 	width:1fr;
 	max-width:500px;
+	min-width:250px;
 	padding:20pt;
 	border:solid 1px var(--contextBorderColor);
 	box-shadow: 5px 5px 4px rgba(0,0,0,0.7);
 	margin:10pt;
+	background-color:white;
 }
 .backLinks .title {
 	margin:-12pt;
 	font-weight:bold;
+	font-size:14pt;
+	display:block;
+	border-bottom:solid 1pt black;
+	margin-bottom:5pt;
+	padding-bottom:5pt;
 }
 
 .itemCount {
@@ -969,4 +982,30 @@ table td.inlineLabel {
 	display:flex;
 	flex-direction:row;
 	justify-content: space-between;
+}
+
+.dlg-value select {
+	border:solid 1px lightBlue;
+	border-radius:8pt;
+	font-size:10pt;
+	margin-top:10pt;
+	padding:3pt;
+	margin-left:5pt;
+}
+
+.dlg-value input {
+	border:solid 1px lightBlue;
+	border-radius:8pt;
+	font-size:10pt;
+	margin-top:10pt;
+	padding:3pt;
+	margin-left:5pt;
+}
+.backLink .dlg-label {
+	margin-left:-10pt;
+}
+
+.historyContainer {
+	display:flex;
+	flex-direction:row;
 }

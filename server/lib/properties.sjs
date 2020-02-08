@@ -4,10 +4,12 @@ var NS = require("ns");
 var ns = new NS();
 xdmp.addResponseHeader("Access-Control-Allow-Origin", "*");
 var classType = xdmp.getRequestField("type","");
+var q = xdmp.getRequestField("q","");
 let query = `${ns.sparql()}
-select distinct ?predicate ?label ?range ?datatype ?cardinality ?nodeKind where {
-    ?classType rdfs:subClassOf*|class:isSubClassOf* ?type.
-    ?predicate property:hasDomain|rdfs:domain ?type.
+select distinct ?predicate ?label ?range ?datatype ?cardinality ?nodeKind ?domain ?domainLabel ?order where {
+    ?classType rdfs:subClassOf*|class:isSubClassOf* ?domain.
+    ?predicate property:hasDomain|rdfs:domain ?domain.
+    ?domain term:prefLabel ?domainLabel.
     optional {
     ?predicate term:prefLabel|rdfs:label ?label.
     }
@@ -22,6 +24,9 @@ select distinct ?predicate ?label ?range ?datatype ?cardinality ?nodeKind where 
     }
     optional {
         ?predicate property:hasNodeKind ?nodeKind.
+    }
+    optional {
+        ?predicate property:hasOrder ?order.
     }
 } order by ?label`
 let results = ns.cure(Array.from(sem.sparql(query,{classType:ns.ciri(classType)})));

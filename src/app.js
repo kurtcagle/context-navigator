@@ -1,22 +1,67 @@
 import { Router } from 'aurelia-router';
 import {AureliaCookie} from 'aurelia-cookie';
 
+class SplashScreen {
+  constructor(elemPath,startClass,endClass,interval){
+      this.elemPath = elemPath||'.splashContainer';
+      this.startClass = startClass||'startFade';
+      this.endClass = endClass||'hide';
+      this.interval = interval||4;
+//      this._elements = [];
+    }
+  
+   elements(){
+      let _elements = Array.from(document.querySelectorAll(this.elemPath));
+      console.log(_elements);
+      return _elements
+    }
+  
+  addClass(className){
+   let elements = this.elements();
+    elements.forEach((elem)=>elem.classList.add(className));
+  }
+  
+  init(){
+    this.addClass(this.startClass); 
+    this.addClass(this.endClass)
+  }
+}
+
+let splashScreen = new SplashScreen();
+console.log(splashScreen);
+
+splashScreen.init()
+
+
 export class App {
   constructor() {
     //this.userRole = new Set([]);
     window.app = this;
     this.params = this.getQueryParams()||{};
     this.oldConfiguration = "";
-    this.theme = "blue";
-    this.topBannerMessage = `<img src="http://cognitiveworlds.com/lib/getImage.sjs?path=/images/image/_TheCagleReportBanner.jpeg" class="topBannerImage"/>`;
-    this.defaultPage = "publisher:_CognitiveWorld";
-    this.defaultIcon = "/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg";
-    this.missingImage = "/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg";
-    this.defaultLabel = "GraCIE";
+    this.serverDomain = document.location.hostname;
+    console.log(this.serverDomain);
+    this.config = {
+      theme:"blue",
+      topBannerMessage:`<img src="http://cognitiveworlds.com/lib/getImage.sjs?path=/images/image/_TheCagleReportBanner.jpeg" class="topBannerImage"/>`,
+      defaultPage:"publisher:_CognitiveWorld",
+      defaultIcon:"/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg",
+      missingImage:"/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg",
+      defaultLabel:"GraCIE",
+      footer:`<div class="copyright">Copyright 2019 Semantical LLC.</div>`,
+      activeCSS:""
+    };
+//    this.theme = "blue";
+//    this.topBannerMessage = `<img src="http://cognitiveworlds.com/lib/getImage.sjs?path=/images/image/_TheCagleReportBanner.jpeg" class="topBannerImage"/>`;    
+//    this.defaultPage = "publisher:_CognitiveWorld";
+//    this.defaultIcon = "/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg";
+//    this.missingImage = "/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg";
+//    this.defaultLabel = "GraCIE";
+//    this.activeCSS = "";
     this.footer = `<div class="copyright">Copyright 2019 Semantical LLC.</div>`;
     this.widgets = {output:['Loading ...']};
-    this.activeCSS = "";
     this.context = this.params.context||this.defaultPage;
+    this.contextLabel ="Loading";
     this.showProperties = true;
     this.linksContent = "Placeholder";
     this.preferredPredicate = "rdf:type";
@@ -46,9 +91,10 @@ export class App {
     this.namespace = '';
     this.activeLinkPredicate = null;
     this.visibleLinks = [];
+    
     let cookieLogin = JSON.parse(AureliaCookie.get("login"));
     console.log(cookieLogin);
-    this.loginData = cookieLogin?cookieLogin:{username:"",password:"",permissions:[],status:false,action:"login"};
+    this.loginData = cookieLogin?cookieLogin:{username:"",password:"",permissions:[],status:false,action:"login",userCurie:""};
     this.userRole = new Set(this.loginData.permissions);
     this.page = 1;
     this.pageSize = 20;
@@ -61,6 +107,7 @@ export class App {
     this.cardEdit = false;
     this.editMode = "view";
     this.tempGraph = null;
+    this.tempContext;
     this.blocks = [];
     this.loadBlocks();
     this.typedMessage = '';
@@ -181,9 +228,9 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:"",acti
         this.widgets = json.content;
   			this.g = json["graph"];
   			this.report = this.g["report:_"]
-  			if (!options.noPush){this.history.push(this.context);}
+  			if (!options.noPush){this.history.unshift({context:context,label:this.g[context]['term:prefLabel'][0].value.substr(0,40)});}
   			this.context = this.report['report:hasContext'][0].value;
-        window.history.pushState({context:context}, this.g[context]['term:prefLabel'][0].value,`/?context=${context}`);
+        window.history.pushState({context:this.context}, this.g[this.context]['term:prefLabel'][0].value,`/?context=${this.context}`);
 /*        if (this.g[this.context]['rdf:type'][0].value != 'class:_Class'){
           if (this.g[this.context].hasOwnProperty('rdfs:subClassOf')){
             delete this.g[this.context]['rdfs:subClassOf'];
@@ -213,6 +260,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:"",acti
         this.page = 1;
         this.preferredPredicate = this.g[context].hasOwnProperty('term:hasPreferredProperty')?this.g[context]['term:hasPreferredProperty'][0].value:null;
   			this.sort();
+        //this.refreshTemplateProperties();
   			//this.activeLinkPredicate = predicate;
         //this.activateTab(this.predicates.map((predicate)=>predicate.curie)[tabIndex],true,true);
         console.log(tabIndex);
@@ -233,6 +281,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:"",acti
           //this.getWidgets();
           this.refreshBlocks();
           this.validateUserContext();
+          document.documentElement.scrollTop = 0
         },500)
   			//console.log(this.activeLinkPredicate);
         //console.log("************ Predicates");
@@ -335,7 +384,7 @@ inputSearch(){
   	this.activeLinkPredicate = predicate?predicate:this.activePredicates.length>0?this.activePredicates[0].curie:"";
     this.activeLinkPredicate = this.activeLinkPredicate != ''?this.activeLinkPredicate:(this.g[this.context]['rdf:type'][0].value === 'class:_Class')?"rdf:type":"";
     //console.log("activeLinkpredicate = ",this.activeLinkPredicate);
-    let sortMode = this.g[this.context].hasOwnProperty('class:isClassWithPreferredSortMode')?this.g[this.context]['class:isClassWithPreferredSortMode'][0].value:this.sortMode;
+    let sortMode = (this.g[this.context].hasOwnProperty('class:isClassWithPreferredSortMode')&&this.g[this.context]['class:isClassWithPreferredSortMode']!=null)?this.g[this.context]['class:isClassWithPreferredSortMode'][0].value:this.sortMode;
     //console.log(sortMode);
     this.sortMode = sortMode;
     let path = `${this.server}/lib/links.sjs?context=${this.context}&predicate=${this.activeLinkPredicate}&q=${this.qRefine}&page=${this.page}`;
@@ -472,10 +521,10 @@ inputSearch(){
         case 'xsd:float':{return parseFloat(item.value).toLocaleString(["en-us"],{style:"decimal",maximumFractionDigits:4})};
         case 'unit:_MilesPerGallon':{return `${parseInt(item.value)} mpg`};
         case 'unit:_Mile':{return `${parseInt(item.value).toLocaleString(["en-us"],{style:"decimal",maximumFractionDigits:1})} miles`};
-//        case "xsd:dateTime":{return `${(new Date(item.value)).toLocaleString(["en-us"],{ timeZone: 'UTC' } )}`};
-//        case "xsd:date":{return `${(new Date(item.value)).toLocaleString(["en-us"],{ timeZone: 'UTC' } )}`};
-          case "xsd:dateTime":{return item.value};
-          case "xsd:date":{return item.value};
+        case "xsd:dateTime":{return `${(new Date(item.value)).toLocaleString(["en-us"],{ timeZone: 'UTC' } )}`};
+        case "xsd:date":{return `${(new Date(item.value)).toLocaleString(["en-us"],{ timeZone: 'UTC' } ).split(/\, /)[0]}`};
+//          case "xsd:dateTime":{return item.value};
+//          case "xsd:date":{return item.value};
         case "termType:_Image":return `<a href="${item.value}" target="_blank"><img src="${item.value}" class="imageThumbnail"/></a>`;
         case "xsd:textLiteral":return `<pre>${item.value}</pre>`;
         case "xsd:imageURL":return `<div class="internalImageContainer"><a href="${item.value}" target="_blank"><img src="${item.value}" class="link internalImage"/></a></div>`;
@@ -486,6 +535,8 @@ inputSearch(){
           </div>`;
         case "xsd:curie":return `<span class="curie">${item.value}</span>`;
         case "xsd:anyURI":return `<a href="${item.value}" target="_blank" class="link">${item.value.replace(/(http.+?\/\/)(.+?\/).*/,'$1$2...')}</a>`;
+        case "xsd:email":return `<a href="mailto:${item.value}" target="_blank" class="link">${item.value}</a>`;
+        case "xsd:telephone":return `<a href="tel:${item.value.replace(/\-|\(|\)|\./g,'')}" target="_blank" class="link">${item.value}</a>`;
         case "xsd:anyURL":return `<a href="https://${item.value}" target="_blank" class="link">${item.value.replace(/(http.+?\/\/)(.+?\/).*/,'$1$2...')}</a>`;
         case "identifier:_Email":return `<a href="mailto:${item.value}" target="_blank" class="emailLink"><span>${item.value}</span></a>`
         case "xsd:hours":{
@@ -543,10 +594,12 @@ inputSearch(){
   	}
 
     tokenize(str,tokenCase = "title"){
+      console.log(str);
       var tokens = str.split(/\s+/);
       let expr = tokens.map((token)=>`${token.substr(0,1).toUpperCase()}${token.substr(1)}`).join('');
       expr = expr.replace(/[^A-z0-9_\-]/gi,'');
       if (tokenCase === "camel"){
+        console.log("TLC #2");
         return `${expr.substr(0,1).toLowerCase()}${expr.substr(1)}`;
         }
       else {
@@ -692,6 +745,8 @@ inputSearch(){
   }
   editCardProperties(){
     console.log(this.g[this.context]);
+    this.tempGraph = Object.assign({},this.g);
+    this.tempContext = this.context;
     this.cardEdit=true;
     this.activeCard.title = this.g[this.context]['term:prefLabel'][0].value;
     this.activeCard.body = this.g[this.context]['term:hasDescription'][0].value;
@@ -718,7 +773,6 @@ inputSearch(){
   }
   saveCardProperties(){
     this.cardEdit = false;
-    let context = this.context;
     let curie = this.activeCard.curie;
        this.g[this.context]['term:prefLabel'][0].value = this.activeCard.title!= ''?this.activeCard.title:`${this.tokenize((new Date()).toISOString())}`;
        this.g[this.context]['term:hasDescription']=[{datatype:"xsd:html",value:this.activeCard.body,type:"literal"}];
@@ -732,8 +786,9 @@ inputSearch(){
     console.log(termObjs);
     this.g[this.context]['term:hasCrossReference']=termObjs
     let buffer = [];
-    let update = Array.from(Object.keys(this.g[context])).forEach((predicate)=>{
-      Array.from(this.g[context][predicate]).forEach((object)=>{
+    let update = Array.from(Object.keys(this.g[this.context])).forEach((predicate)=>{
+      let objects = this.g[this.context][predicate]||[];
+      Array.from(objects).forEach((object)=>{
         if (object.type==='uri'){
           buffer.push(`${curie} ${predicate} ${object.value}.`)
         }
@@ -745,14 +800,14 @@ inputSearch(){
     let triples = buffer.join('\n');
     let prolog = Object.keys(this.ns).map((prefix)=>`prefix ${prefix}: <${this.ns[prefix]}>`).join('\n');
     let output = `${prolog}
-delete {${context} ?p ?o}
+delete {${this.context} ?p ?o}
 insert {
   ${triples}
 }
 where {
-  ${context} ?p ?o
+  ${this.context} ?p ?o
 }`;
-  let newRecord = {"@context":this.namespace,"graph":this.g,subject:context,curie:curie};
+  let newRecord = {"@context":this.namespace,"graph":this.g,subject:this.context,curie:curie};
   let path = `${this.server}/lib/updateProperties.sjs`;
   window.fetch(path,{method:"POST",body:JSON.stringify(newRecord,null,4)})
        .then((response)=>response.text())
@@ -821,7 +876,12 @@ console.log(output);
 
 
   revertCard(){
-      this.pinPage(true,"card");
+      this.cardEdit = false;
+      this.g = Object.assign({},this.tempGraph);
+      //console.log(this.context,this.tempContext);
+      //this.context = this.tempContext;
+      //this.pinPage(true,"card");
+      this.fetchContext(this.context,"card");
       console.log("revertCard() called");
   }
 
@@ -908,7 +968,7 @@ console.log(output);
     window.fetch(path,params)
       .then((response)=>response.json())
       .then((json)=>{
-        console.log(json);
+          console.log(json);
           this.loginData  = json;
           this.userRole = new Set(this.loginData.permissions);
           if (!this.loginData.status){alert("Log-in failed.")}
@@ -923,11 +983,13 @@ console.log(output);
   newCard(ctx,asProperty=false,preferredProperty='',target=''){
     let context = ctx||this.context;
     this.context = context;
+    this.generateEntityId(this.context);
     this.activeCard = Object.assign(this.defaultCard,{});
     this.activeCard.type = context;
     this.activeCard.title = "";
     this.activeCard.body = "";
     this.activeCard.externalURL = "";
+    this.activeCard.user = "";
     this.activeCard.template = "";
 //    this.activeCard.domain = context;
     this.activeCard.image = this.g.hasOwnProperty(context)?Array.isArray(this.g[context]['term:hasPrimaryImageURL'])?this.g[context]['term:hasPrimaryImageURL'][0].value:"":"";
@@ -964,7 +1026,7 @@ console.log(output);
       })
       .catch((e)=>console.log(e));
     */
-    this.availableTemplates = [];
+//    this.availableTemplates = [];
     /* This gets additional properties appropriate to the class */
     let path = `${this.server}/lib/newTemplate.sjs?context=${this.context}`
     window.fetch(path)
@@ -973,10 +1035,26 @@ console.log(output);
         this.templateProperties = json.templateData;
         console.log(this.templateProperties);
         this.generateEntityId(this.context);
+        Array.from(window.document.querySelectorAll('.modal-body')).forEach((elem)=>elem.scrollTop = 0);
         this.newModal.open();
       })
-      .catch((e)=>console.log(e));
+      .catch((e)=>console.log(e)); 
+      this.newModal.open();
+
   }
+
+  refreshTemplateProperties(){
+    this.availableTemplates = [];
+    let path = `${this.server}/lib/newTemplate.sjs?context=${this.context}`
+    window.fetch(path)
+      .then((response)=>response.json())
+      .then((json)=>{
+        this.predicates = json.templateData;
+        console.log(this.predicates);
+      })
+      .catch((e)=>console.log(e));    
+  } 
+
 
   duplicateCard(){
     this.revertCard = Object.assign(this.activeCard,{});
@@ -1018,6 +1096,8 @@ console.log(output);
         this.activeCard.curie += this.tokenize(dt.toISOString());
       }
 
+    this.activeCard.user = this.loginData.context;
+
     let prolog = Object.keys(this.ns).map((prefix)=>`prefix ${prefix}: <${this.ns[prefix]}>`).join('\n');
         console.log("ToDo: Complete the update of the new entry.");
 
@@ -1034,13 +1114,14 @@ console.log(output);
         this.activeCard.predicateEntries = [];  
         this.templateProperties.filter((predicate)=>predicate.value).forEach((predicate)=>this.activeCard.predicateEntries.push(Object.assign(predicate,{})));
         console.log("Predicate Entries",this.activeCard.predicateEntries);
+        this.activeCard.predicateEntries.filter((property)=>(property.curie === 'term:hasPublicationStatus') && (!property.value || property.value === '')).forEach((property)=>property.value = 'publicationStatus:_Draft');
         let path = `${this.server}/lib/newCard.sjs`;
         window.fetch(path,{method:"POST",body:JSON.stringify(this.activeCard,null,4)})
              .then((response)=>response.text())
              .then((text)=>{
                 console.log(this.activeCard);
                 //location.href =  `${this.client}?context=${this.activeCard.curie}&cache=refresh&mode=card`;
-                this.refreshApp();
+               // this.refreshApp();
                 this.fetchContext(this.activeCard.curie,'card');
                 //console.log(text);
               })
@@ -1115,6 +1196,7 @@ console.log(output);
       else {
       let cleanTitle = this.activeCard.title;
       let className = this.context.replace(/.*?\:_(.+?)$/,"$1");
+      console.log("TLC #1");
       let prefix = `${className.substr(0,1).toLowerCase()}${className.substr(1)}`;
       console.log(this.activeCard);
       var id = this.tokenize(cleanTitle);
@@ -1802,7 +1884,21 @@ setBodyToTemplate(){
     }
   }
   updateConfiguration(){
-    let path = `${this.server}/lib/server.sjs?context=class:_Configuration`;
+          let path = `${this.server}/lib/configure.sjs?host=${this.serverDomain}`;
+          window.fetch(path)
+          .then((response)=>response.json())
+          .then((json)=>{
+            this.config = json;
+            this.config.mode=this.params.mode||this.config.mode;
+            this.context = this.params != null?this.params.context||this.config.defaultPage:this.config.defaultPage;
+
+            this.fetchContext(this.context,this.mode)
+          })
+          .catch((e)=>console.log(e))
+  }
+
+  updateConfigurationOld(){
+    let path = `${this.server}/lib/configure.sjs?host=${this.hostDomain}`;
     window.fetch(path)
     .then((response)=>response.json())
     .then((json)=>{
@@ -1838,6 +1934,9 @@ setBodyToTemplate(){
     })
     .catch((e)=>console.log(e))
   }
+
+
+
   titleCase(expr){
     return expr.replace(/(^|\W)(\w)/g,(text)=>(text).toUpperCase())
   }
@@ -1863,10 +1962,13 @@ setBodyToTemplate(){
   getPredicate(predicate){
     return this.predicates?this.predicates.find((predicate)=>predicate === predicate.s):null;
   }
-  getPreferredClasses(context){
+  getPreferredClasses(context=this.context){
     if (!this.g){return []}
+    if (!context){return []}
+    if (this.g.hasOwnProperty(context) === null){return []}
     let contextClass = this.g[context]['rdf:type'][0].value;
     console.log(contextClass);
+
     let preferredProperty = this.g[contextClass].hasOwnProperty('term:hasPreferredProperty')?this.g[contextClass]['term:hasPreferredProperty'][0].value:'';
     console.log(preferredProperty);
     if (preferredProperty !=''){

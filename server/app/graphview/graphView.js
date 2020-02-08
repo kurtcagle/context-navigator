@@ -19,11 +19,13 @@ class GraphVis {
         this.nodes = new vis.DataSet([]);
         this.nodeIDs = new Set([]);
         this.edges = new vis.DataSet([]);
-        this.ignoredPredicates = new Set(['term:isMemberOf']);
         this.edgeIDs = new Set([]);
+        this.pageSize = 50;
+        this.ignoredPredicates = new Set(['term:isMemberOf']);
         this.options = {  
               "nodes": {
-                  "shape":"box",
+                  "shape":"image",
+                  "brokenImage":"http://www.daviddarling.info/images/sphere.jpg",                  
                   "widthConstraint":{"maximum":320}
               },/*
               "physics": {
@@ -34,7 +36,7 @@ class GraphVis {
               },*/ 
               "physics": {
                 "forceAtlas2Based": {
-                  "springLength": 100
+                  "springLength": 250
                 },
                 "minVelocity": 0.75,
                 "solver": "forceAtlas2Based",
@@ -51,10 +53,12 @@ class GraphVis {
         this.counter = 0;
         this.network = new this.vis.Network(this.container, {nodes:this.nodes,edges:this.edges}, this.options); 
         this.context = this.params.context;
-        this.fetchData(this.params.context);
+//        window.parent.gvis = this;
+        setTimeout(()=>this.fetchData(this.params.context),50);
     }
 
-    fetchData(context){        
+    fetchData(context,q=''){
+        window.parent.gvis = this;
         this.container.classList.add("wait");
         window.fetch(`/lib/server.sjs?context=${context}`)
         .then((blob)=> blob.json())
@@ -72,19 +76,34 @@ class GraphVis {
             this.links = this.report.hasOwnProperty('report:hasLink')?this.report['report:hasLink'].map((item)=>item.value):[];
             this.links.push(this.context);
 //            console.log(this.links);
-            this.generateNetwork();
-            this.container.classList.remove("wait");
+            window.fetch(`/lib/links.sjs?context=${context}&predicate=null&pageSize=${this.pageSize}&q=${q}`)
+                .then((blob)=>blob.json())
+                .then((json)=>{
+                    this.inlinks = json.data;
+                    console.log(this.inlinks);
+                    this.generateNetwork(context);
+                    this.container.classList.remove("wait");
+                    //window.parent.gvis = this;
+                })
+                .catch((e)=>console.log(e))
             })
-        .catch((e)=>console.log(e))
+        .catch((e)=>console.log(e));
     }
 
-    generateNetwork(){
+    generateNetwork(context){
         this.links.forEach((key)=>{
 //            console.log(key);
             var label = (this.g[key])?this.g[key]['term:prefLabel'][0].value:key;
             var subjectType = (this.g[key])?this.g[key]['term:isMemberOf']?this.g[key]['term:isMemberOf'][0].value:this.g[key]['rdf:type']?this.g[key]['rdf:type'][0].value:'':'';
 //            console.log(subjectType);
-            var subjectNode = {id: key, label:`<<${subjectType.replace('class:_','')}>>\n${label}`,group:subjectType};
+            let image = this.g[key].hasOwnProperty('term:hasPrimaryImageURL')?this.g[key]['term:hasPrimaryImageURL'][0].value:"";
+            var subjectNode = {id: key, label:`<<${subjectType.replace('class:_','')}>>\n${label}`,group:subjectType,image:image};
+            if (key === context){
+                subjectNode.shape = 'circularImage';
+                subjectNode.size = 40;
+                subjectNode.shadow = true;
+            }
+            subjectNode.label = label;
             if (!this.nodeIDs.has(key)){
                 this.nodes.add(subjectNode)
                 this.nodeIDs.add(subjectNode.id)
@@ -102,14 +121,16 @@ class GraphVis {
 //                        var objectType = (this.g[object.value])?this.g[object.value]['rdf:type'][0].value:'';
                         var objectType = (this.g[object.value])?this.g[object.value]['rdf:type']?this.g[object.value]['rdf:type'][0].value:'':'';
 //                        console.log(objectType);
-                        var objectNode = {id: object.value, label:`<<${objectType.replace('class:_','')}>>\n${label}`,group:objectType};
+                        let image = (this.g[object.value])!=null?this.g[object.value].hasOwnProperty('term:hasPrimaryImageURL')?this.g[object.value]['term:hasPrimaryImageURL'][0].value:"":"";
+                        var objectNode = {id: object.value, label:`<<${objectType.replace('class:_','')}>>\n${label}`,group:objectType,image:image};
+                        objectNode.label = label;
                         if (!this.nodeIDs.has(objectNode.id)){
                             this.nodes.add(objectNode)
                             this.nodeIDs.add(objectNode.id)
                             }
                         var edgeID = `${key}-${objectNode.id}-predicate`;
 //                        console.log(predicate);
-                        var edge = {from:key,to:objectNode.id,title:predicate,arrows:'to',id:edgeID}
+                        var edge = {from:key,to:objectNode.id,label:this.g[predicate]['term:prefLabel'][0].value,arrows:'to',id:edgeID}
 //                        console.log(edge);
                         if (!this.edgeIDs.has(edgeID)){
                             this.edges.add(edge);
@@ -136,26 +157,43 @@ class GraphVis {
                     });
                 })
             })
+          console.log(this.inlinks);
+          this.inlinks.forEach((link)=>{
+              let nodeID = link.link;
+              let node = {id: nodeID, label:link.linkLabel,group:link.type,image:link.image};
+              let edgeID = `${nodeID}-${context}-${link.predicate}`;
+              let edge= {from:nodeID,to:context,label:link.predicateLabel,arrows:'to',id:edgeID};
+              if (!this.edgeIDs.has(edgeID)){
+                    this.edges.add(edge);
+                    this.edgeIDs.add(edgeID);
+                    }
+              if (!this.nodeIDs.has(nodeID)){
+                    this.nodes.add(node);
+                    this.nodeIDs.add(nodeID);
+                    }
+            })
+          
           var data = {
             nodes: this.nodes,
             edges: this.edges
           };
           var graphVis = this;
-    this.network.on("doubleClick", function (params) {
+    this.network.on("click", function (params) {
         console.log(params);
         var newContext = this.getNodeAt(params.pointer.DOM);
 //        console.log(newContext);
 //        gvis.data = {};
         gvis.context = newContext;
-        gvis.loadSelectedContext();
-        //gvis.fetchData(newContext);
+        //gvis.loadSelectedContext();
+        gvis.fetchData(newContext);
         //location.href=`?context=${newContext}&mode=card`;
     });            
 
-    this.network.on("click", function (params) {
+    this.network.on("doubleClick", function (params) {
 //        console.log(params);
         var newContext = this.getNodeAt(params.pointer.DOM);
         gvis.context = newContext;
+        window.parent.app.fetchContext(gvis.context,'card');
         
     });            
 
@@ -207,9 +245,19 @@ class GraphVis {
   	    return params;
   		}
   	}
-  	loadSelectedContext(){
-  	    window.parent.location.href=`/?context=${this.context}&mode=graph`;
+  	loadSelectedContext(context,q){
+/*    	    if (this.context){
+  	    window.parent.location.href=`/?context=${this.context}&mode=graph`;  	        
+  	    }*/
+  	  this.nodes = new vis.DataSet([]);
+        this.nodeIDs = new Set([]);
+        this.edges = new vis.DataSet([]);
+        this.edgeIDs = new Set([]);
+        this.network.setData({nodes:this.nodes,edges:this.edges});
+        this.fetchData(this.context,q);
+
   	}
+  	message(expr){console.log(expr)};
 }
 
 var gvis = new GraphVis();

@@ -12,14 +12,14 @@ var cache = xdmp.getRequestField("cache","cached");
 let query = `${ns.sparql()}
 select distinct ?s ?prefLabel ?sTypeLabel ?imageURL where {
     {{
-    ?s term:prefLabel|term:hasSymbol|term:hasCode ?prefLabel.
+    ?s term:prefLabel|term:hasSymbol|term:hasCode|term:hasAlternateLabel ?prefLabel.
     bind(lcase(?prefLabel) as ?search)
     bind(1 as ?baseRank1)
     filter(${qTerms.map((qTerm)=>`regex(?search,"${qTerm}",'i')`).join(' && ')})
     } 
     UNION 
     {
-    ?s term:prefLabel ?prefLabel.
+    ?s term:prefLabel|term:hasAlternateLabel ?prefLabel.
     bind(lcase(?prefLabel) as ?search)
     bind(0.8 as ?baseRank2)
     filter(${qTerms.map((qTerm)=>`contains(?search,"${qTerm}")`).join(' && ')})

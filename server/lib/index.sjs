@@ -11,7 +11,6 @@ let cg = JSON.parse(seoData.cg);
 <html>
   <head>
     <meta charset="utf-8"/>
-    <title>Navigator</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style type="text/css">
 html,body {height:100%}
@@ -42,6 +41,7 @@ html,body {height:100%}
     <script type="application/ld+json">
     ${seoData.seo}    
     </script> 
+    <script src="/js/ctxmenu/ctxmenu.js">/* */</script>
     <meta property="og:title" content="${cg['term:prefLabel'][0].value}" />
     <meta property="og:url" content="/?context=${context}" />
     <meta property="og:type" content="article" />
@@ -51,12 +51,49 @@ html,body {height:100%}
 	<script>
 	  var db = null;//new PouchDB('my_database');
 	</script>
+	<script type="application/javascript">
+class XPath {
+  constructor(document=document,nsmap={}) {
+    this.doc = document;
+    this.nsmap = nsmap;
+    this.resolver = this.namespaceGen(nsmap);
+  }
+
+namespaceGen(namespaces){
+  return function(prefix) {
+  var ns = namespaces;
+  return ns[prefix] || null;
+  }
+}  
+ 
+getNodes(context=this.doc,xpathStr){
+   if (xpathStr==null){
+     xpathStr = context;
+     context = this.doc;
+   }
+   var  iterator = this.doc.evaluate(xpathStr, context, this.resolver,XPathResult.ANY_TYPE,null);
+   var nodeArray = [];
+   var node = iterator.iterateNext();
+   while (node){
+      nodeArray.push(node)
+      node= iterator.iterateNext();
+      }
+  return Array.from(nodeArray);
+   }
+  
+xp(context=this.doc,xpathStr){
+  var arr = this.getNodes(context,xpathStr);
+  return arr.map((obj)=>this.nodeStr(obj));
+  }
+}	
+	</script>
+	
   </head>
 
   <body aurelia-app="main">
   <div class="splashFixed">
   <div class="splashContainer">
-    <div class="splashItem"><img src="http://gracie.semanticdatagroup.com/lib/getImage.sjs?path=/images/2020-01-30T10_14_09/GracieSplashSmall.jpg"/>
+    <div class="splashItem"><img src="/lib/getImage.sjs?path=/images/2020-02-15T05_01_09/Kaleidoscope_Banner_Small.jpg"/>
 </div>
     </div>
     <script src="scripts/vendor-bundle.js" data-main="aurelia-bootstrapper"></script>

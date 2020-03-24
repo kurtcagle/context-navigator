@@ -30,7 +30,7 @@ ${activeCard.curie}
       term:createdBy ${activeCard.user};
       term:hasLastModifiedDate "${createdDate}"^^xsd:dateTime;
 #      term:hasPublicationStatus publicationStatus:_Draft;
-     ${activeCard.target != ''?`${activeCard.activePredicate} ${activeCard.target};`:''}
+     ${(activeCard.target != null) && (activeCard.target != '')?`${activeCard.activePredicate} ${activeCard.target};`:''}
      ${(activeCard.type === 'class:_Class')?`rdfs:subClassOf class:_Term;`:''}      
      ${(activeCard.type === 'class:_Class')?`class:hasPrefix "${activeCard.prefix}"^^xsd:string;`:''}      
      ${(activeCard.type === 'class:_Class')?`class:hasNamespace "${activeCard.namespace}"^^xsd:string;`:''}      
@@ -41,7 +41,9 @@ ${activeCard.curie}
         property:hasCardinality ${activeCard.cardinality};
         ${(activeCard.nodeKind === "nodeKind:_Literal")?
           `property:hasDatatype ${activeCard.datatype};`:
-          `rdfs:range ${activeCard.range};`
+          `rdfs:range ${activeCard.range};
+          rdfs:subPropertyOf property:hasProperty;
+          `
           }          
         `:''}
          ${activeCard.predicateEntries.map((property)=>
@@ -49,6 +51,9 @@ ${activeCard.curie}
        .
 }`;
 sem.sparqlUpdate(updateCard);
+let message = {message:"New card created"};
+message
+//updateCard
 /*  let propertiesUpdate = `${ns.sparql()}
 with graph:_data
 insert {

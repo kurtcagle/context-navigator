@@ -11,6 +11,7 @@ let updateObj = JSON.parse(updateJSON);
 let g = updateObj.graph;
 let context = updateObj.subject;
 let curie = updateObj.curie;
+let user = updateObj.user;
 let buffer = [];
 Object.keys(g[context]).forEach((predicate)=>{
 g[context][predicate].forEach((object)=>{
@@ -36,7 +37,7 @@ let output = `${prolog}
      ${
         triples
         }
-     ${curie} term:hasLastModifiedDate "${lastModifiedDate}"^^xsd:dateTime.   
+     ${curie} term:hasLastModifiedDate "${lastModifiedDate}"^^xsd:dateTime.
     }
     where {
         optional {

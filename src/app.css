@@ -812,6 +812,11 @@ table td.inlineLabel {
 	max-width:500px;
 }
 
+.internalImage {
+	width:160px;
+	height:auto;
+}
+
 .compliance .description {
 	font-size:10pt
 }
@@ -963,7 +968,16 @@ table td.inlineLabel {
 	min-height:250px;
 }
 
+.sortMode {
+	font-size:16pt;
+	height: 22pt;
+}
 
+.refine {
+	font-size:16pt;
+	height: 22pt;
+	line-height:22pt;
+}
 .graphBody {margin:0.125in;}
 
 .userFullName {
@@ -1008,4 +1022,37 @@ table td.inlineLabel {
 .historyContainer {
 	display:flex;
 	flex-direction:row;
+	align-items: center;
+	justify-content: flex-start;
+	font-size:10pt;
+}
+
+.splashContainer {
+  display:flex;
+  fled-direction:column;
+  background-color:black;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  min-height:100vh;
+  position:absolute;
+  left:0;
+  top:0;
+  opacity:100%;
+  z-index:100;
+}
+.splashItem img {}
+.splashContainer.startFade {
+  transition:opacity 4s,z-index 4s;
+}
+.splashContainer.hide {
+ z-index:-1;
+  opacity:0
+}
+
+.semlink {
+	cursor:pointer;
+	color:green;
+	text-decoration-style: dashed;
+	font-weight:bold;
 }

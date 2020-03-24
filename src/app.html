@@ -3,16 +3,19 @@
   <require from="./modalCustomElement"></require>
   <require from="ObjectKeysValueConverter"></require>
   <require from="SortedObjectKeysValueConverter"></require>
+  <link rel="icon" href="${config.defaultIcon}" />
   <div class="outer ${config.theme}">
   <style type="text/css">${config.activeCSS}</style>
+  <script src="/js/ctxmenu/ctxmenu.js">/* */</script>
   <div class="container ${wait?'wait':''}">
+  <title>${g[context]['term:prefLabel'][0].value}</title>
   <div class="header">
   	  <div class="headerBlock" click.trigger="fetchContext(config.defaultPage,'card')">
 	      <img src="${config.defaultIcon}" class="headerLogo link"/>
 	  	  <div class="bannerText">${config.defaultLabel}</div>
   	 </div>
   	 <div class="headerBlock">
-	  	  <input type="search" value.bind="q" input.delegate="fetchSearch()" placeholder="Search"/>
+	  	  <input type="search" value.bind="q" change.delegate="fetchSearch()" placeholder="Search"/>
 	   	  <div class="actions mobile" if.bind="loginData.status">
 	   	  		<select value.bind="activeGraph" class="classSelector" change.delegate="selectGraph(activeGraph)">
 	   	  			<option value="">All Graphs</option>
@@ -33,10 +36,12 @@
 	   	  </div>
    	  </div>	
       <div class="historyContainer">
-	  		<div class="label">History</div>
+	  		<div class="label">History: </div>
+	  		<div>
 	  		<select value.bind="context" class="classSelector"  change.delegate="fetchContext(context)">
 	  			<option repeat.for="item of history" value.bind="item.context">${item.label}</option>
 	  		</select>
+	  	    </div>
 	  </div>
    	  <div class="headerBlock mobile">
    	  	<div class="userFullName">${loginData.data['term:prefLabel'][0].value}</div>
@@ -46,6 +51,7 @@
 
    	  </div>  	  
   </div>
+  <div class="CtxMenu"></div>
   <div class="paneContainer">
   <div class="horizontalPanes">	
   <div class="leftPane">
@@ -59,25 +65,23 @@
   	  	   <div class="button" click.trigger="showMenu=!showMenu">&#x2261; Menu</div>
   	  	   <div class="mainMenu ${showMenu?'visible':''}" click.trigger="showMenu=false" blur.trigger="showMenu=false"> </div>
   	  	   <!--<div class="button ${mode==='list'?'selected':''}" click.trigger="setMode('list')">Links</div>-->
-  	  	   <div class="button ${mode==='card'?'selected':''}" click.trigger="setMode('card')">Content</div>
-  	  	   <div class="button ${mode==='properties'?'selected':''}" click.trigger="setMode('properties')">Properties</div>
   	  	   <div class="button ${mode==='graph'?'selected':''}" click.trigger="setMode('graph')">Visualize</div>
 <!--  	  	   <div class="button ${mode==='images'?'selected':''}" click.trigger="setMode('images')">Images</div>-->
 <!--  	  	   <div class="button ${mode==='compliance'?'selected':''}" click.trigger="setMode('compliance')">Compliance</div> -->
 <!--  	  	   <div class="button ${mode==='ingestion'?'selected':''}" click.trigger="setMode('ingestion')">Ingestion</div>-->
- 	  	   <div class="button ${mode==='sparql'?'selected':''}" click.trigger="setMode('sparql')" if.bind="userRole.has('accountRole:_Sparql')">SPARQL</div>
+<!-- 	  	   <div class="button ${mode==='sparql'?'selected':''}" click.trigger="setMode('sparql')" if.bind="userRole.has('accountRole:_Sparql')">SPARQL</div>-->
  	  	   <!--<div class="button ${mode==='widgets'?'selected':''}" click.trigger="setMode('widgets')">Widgets <span class="${widgets.count>0?'activeLight':'inactiveLight'}">&#9830;</span></div>--> 	  	   
- 	  	   <div class="button ${mode==='namespaces'?'selected':''}" click.trigger="setMode('namespaces')" if.bind="userRole.has('accountRole:_Sparql')">
-Namespaces</div>
+ 	  	   <!-- <div class="button ${mode==='namespaces'?'selected':''}" click.trigger="setMode('namespaces')" if.bind="userRole.has('accountRole:_Sparql')">
+Namespaces</div> -->
  	  	   <div class="button ${mode==='search'?'selected':''}" click.trigger="setMode('search')" if.bind="mode==='search'">Search</div>
 	   	  <!--<div class="button" click.trigger="fetchContext('page:_About','list',{predicate:'term:hasFolderPage',sortMode:'sortMode:_AlphaAsc'})">About</div>-->
-	  	<div class="button" click.trigger="goBack()">Back</div>
+	  	<!--<div class="button" click.trigger="goBack()">Back</div>
 	  	<div class="button" click.trigger="goForward()">Forward</div>
    	  	<div class="button" click.trigger="launchService()" if.bind="loginData.status">JSON</div>
 		<div class="button" click.trigger="launchSeo()" if.bind="loginData.status">SEO</div>
-		<div class="button" click.trigger="launchPage()" if.bind="loginData.status">New Tab</div>
-		<div class="button" click.trigger="pinPage(true)" if.bind="loginData.status">Refresh</div>
-		<div class="button" click.trigger="cache='cached'" if.bind="loginData.status">Cache</div>
+		<div class="button" click.trigger="launchPage()" if.bind="loginData.status">New Tab</div>-->
+		<div class="button" click.trigger="fetchContext(context)" if.bind="loginData.status">Refresh</div>
+		<!--<div class="button" click.trigger="cache='cached'" if.bind="loginData.status">Cache</div>-->
 
    	  </div>
   </div>
@@ -110,13 +114,14 @@ Namespaces</div>
 		</div>-->
 
     <div class="properties"  if.bind="mode==='properties' && !cardEdit">
-	  	<div class="type link" click.trigger="fetchContext(g[context]['rdf:type'][0].value,'list')">${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>
-		<div class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</div>
 		<div class="buttons">
 			<div class="button" click.trigger="editCardProperties()" if.bind="userValidated">Edit</div>
+    	  	<div class="button ${mode==='card'?'selected':''}" click.trigger="setMode('card')">Content</div>
 		</div>
+		<div class="type link" click.trigger="fetchContext(g[context]['rdf:type'][0].value,'card')">${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>
+		<div class="propertyContextLabel">${g[context]['term:prefLabel'][0].value}</div>
 		<div class="property" repeat.for="property of predicates" if.bind="(g[context][property.curie].length > 0) && (property.order != null)">
-		  	<div class="label" title="${property.curie}" title="${property.description}. Curie = ${property.curie}"
+		  	<div class="label" title="${property.description}. Curie = ${property.curie}"
 		  	>${property.fullLabel}</div>
 		  	<div class="valueBlock">
 			  	<div class="value" repeat.for="item of g[context][property.curie]">
@@ -124,7 +129,7 @@ Namespaces</div>
 			  		</span>
 			  		<span class="value" if.bind="property.nodeKind === 'nodeKind:_Literal'" title="${item.datatype}"><span innerhtml="${displayLiteral(item)}"
 			  			css="item.datatype.startsWith('xsd:textLiteral')?'display:block;word-space:pre':''"></span> 
-			  			<span class="link" click.trigger="fetchContext(item.datatype)" if.bind="g[item.datatype]['term:prefLabel'].length > 0 ">&nbsp;[${g[item.datatype]["term:prefLabel"][0].value}]</span> <span if.bind="!$last && $index != 0">, </span>
+			  			<span class="link" click.trigger="fetchContext(item.datatype)" if.bind="g[item.datatype]['term:prefLabel'].length > 0 ">&nbsp;[${g[item.datatype]["term:prefLabel"][0].value}]</span> <span if.bind="($index != $last - 1)">, </span>
 			  		</span>
 			  	</div>
 		    </div>
@@ -239,7 +244,7 @@ Namespaces</div>
 		  	<div class="label" title="${property.description}. Curie = ${property.curie}">${property.fullLabel}</div>
 		  	<div class="valueBlock">
 			  	<div class="value" repeat.for="item of wrapArray(g[context][property.curie])">
-			  		<div class="link" if.bind="item.type==='uri'" if.bind="linkPropertyList[property.curie]||[]>0">
+			  		<div class="link" if.bind="(item.type==='uri')">
 			  			<span class="link">${item.label}</span>
 			  			<button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
 			  		</div>
@@ -296,6 +301,9 @@ Namespaces</div>
 			  			<input type="number" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
 			  		</span>
 			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:float')" title="${item.value}">
+			  			<input type="number" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
+			  		</span>
+			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:double')" title="${item.value}">
 			  			<input type="number" value.bind = "item.value"/><button click.trigger="deleteItem($index,g[context][property.curie])">X</button>
 			  		</span>
 			  		<span class="value" if.bind="item.type==='literal' && item.datatype.startsWith('xsd:currency_usd')" title="${item.value}">
@@ -386,7 +394,7 @@ Namespaces</div>
 			<!--<div class="button" click.trigger="editCard('duplicate')" if.bind="userRole.has('accountRole:_Edit')">Duplicate</div>-->
 			<div class="button" click.trigger="deleteCard()" if.bind="userRole.has('accountRole:_Delete') && (context != 'class:_Class') && (context != 'class:_Property')">Delete</div>
  		  	
-		  	<div class="button" click.trigger="deleteClassItems(false)" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Delete')  && (context != 'class:_Class') && (context != 'class:_Property')">Clear Items In ${g[context]['term:prefLabel'][0].value}</div>
+		  	<div class="button" click.trigger="deleteClassItems(false)" if.bind="context.startsWith('class:')  && (context != 'class:_Class') && (context != 'class:_Property')">Clear Items In ${g[context]['term:prefLabel'][0].value}</div>
 		  	<div class="button" click.trigger="deleteClassItems(true)" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Delete')  && (context != 'class:_Class') && (context != 'class:_Property')">Delete Class, Properties and Items In ${g[context]['term:prefLabel'][0].value}</div>
 		</div>
 
@@ -450,7 +458,7 @@ Namespaces</div>
 		  		<div class="button" click.delegate="launchPage(item.link,'card')" if.bind="loginData.status">Content</div>
 				<div class="button" click.delegate="launchPage(item.link,'properties')"
 		  			 if.bind="loginData.status">Properties</div>
-		  		<div class="button" if.bind="loginData.status">${item.publicationStatus.split(':_')[1]}</div>	 
+		  		<div class="button" if.bind="loginData.status" click.trigger="addProperty('term:hasPublicationStatus',item.curie)">${item.publicationStatus.split(':_')[1]}</div>	 
 	  		</div>
   		</div>
   	</div>
@@ -475,6 +483,8 @@ Namespaces</div>
 
 
 	<div if.bind="mode==='graph'">
+	  <div class="button ${mode==='card'?'selected':''}" click.trigger="setMode('card')">Back to Content</div>
+
  	  <div class="graphBody">
 	 	  <div class="notice">Click nodes once to expand graph, twice to jump to node entry.</div>
 	 	  <div class="graphBar">
@@ -490,16 +500,18 @@ Namespaces</div>
    <div class="card"  if.bind="(mode==='card') && (cardEdit === false)">
    	<!--<div class="topBanner link" innerhtml.bind="topBannerMessage" click.trigger="fetchContext(defaultPage)"></div>-->	
 	<div class="buttons" if.bind="userValidated">	
-	    <div class="button" click.trigger="newCard()" if.bind="context.startsWith('class:')">New ${g[context]['term:prefLabel'][0].value}</div>
+	    <div class="button" click.trigger="newCard(context,g[context]['term:prefLabel'][0].value)" if.bind="context.startsWith('class:')">New ${g[context]['term:prefLabel'][0].value}</div>
 <!--	    <div class="button" click.trigger="newCard(g[context]['rdf:type'][0].value)" if.bind="!context.startsWith('class:')  && userRole.has('accountRole:_Create')">New ${g[g[context]['rdf:type'][0].value]['term:prefLabel'][0].value}</div>-->
-	  	<div class="button" click.trigger="newCard(preferredClass.curie,false,preferredProperty||activeLinkPredicate,context)" if.bind="(!context.startsWith('class:'))" repeat.for="preferredClass of getPreferredClasses(context)">New ${preferredClass.label}</div>
+	  	<div class="button" click.trigger="newCard(preferredClass.curie,preferredClass.label,false,preferredProperty||activeLinkPredicate,context)" repeat.for="preferredClass of preferredClasses">New ${preferredClass.label}</div>
 		<!--<div class="button" click.trigger="editCard('edit')" if.bind="userRole.has('accountRole:_Edit')">Edit</div>-->
 		<div class="button" click.trigger="editCard('edit')" if.bind="userRole.has('accountRole:_Edit')">Edit</div>
+  	  	<div class="button ${mode==='properties'?'selected':''}" click.trigger="setMode('properties')">Properties</div>
 		<!--<div class="button" click.trigger="editCard('duplicate')" if.bind="userRole.has('accountRole:_Edit')">Duplicate</div>-->
 		<div class="button" click.trigger="deleteCard()" if.bind="userRole.has('accountRole:_Delete') && (context != 'class:_Class') && (context != 'class:_Property')">Delete</div>
 		<!--<div class="button" click.trigger="newCard()" if.bind="context.startsWith('class:') && userRole.has('accountRole:_Create')">New ${g[context]['term:prefLabel'][0].value}</div>-->
-		<div class="button" click.trigger="newCard(context,true)" if.bind="context.startsWith('class:')">New Property</div>
+		<div class="button" click.trigger="newCard(context,'Property',true)" if.bind="context.startsWith('class:')">New Property</div>
 		<!--<div class="button" click.trigger="launchPage()">External</div>-->
+		  	<div class="button" click.trigger="deleteClassItems(false)" if.bind="context.startsWith('class:')  && (context != 'class:_Class') && (context != 'class:_Property')">Clear Items In ${g[context]['term:prefLabel'][0].value}</div>
 	</div>
    	<div class="widgetsContainer" innerhtml.bind="widgets.output.join('')" if.bind="!loginData.status">&nbsp;</div>
    	<div if.bind="loginData.status  || widgets.count === 0">
@@ -529,8 +541,9 @@ Namespaces</div>
 				 repeat.for="object of wrapArray(g[context][predicate])"
 				>${g[object.value]['term:prefLabel'][0].value}<span if.bind="!$last">, </span></span>
 			</li>-->
-			<div class="dlg-property backLink" repeat.for="property of predicates" if.bind="property.order != null">
-				<div class="dlg-label" title="${property.description}. Curie = ${property.curie}" click.trigger="fetchContext(property.curie)">${property.label}</div>
+			<div class="dlg-property backLink" repeat.for="property of predicates" if.bind="(property.order != null) && g[context].hasOwnProperty(property.curie) && g[context][property.curie].length>0">
+				<div class="dlg-label" title="${property.description}. Curie = ${property.curie}" click.trigger="fetchContext(property.curie)"
+				>${property.label.split(' ').slice(1).join(' ')}</div>
 				<div class="dlg-value">
 					<span repeat.for="item of g[context][property.curie]"> 
 					<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal'" innerhtml.bind="displayLiteral(item)"></div>
@@ -573,13 +586,13 @@ Namespaces</div>
 
 	  		<div class="property">
 	  			<span class="label">Sort Order</span>
-	  				<select value.bind="sortMode" change.delegate="sort()">
-			  			<option repeat.for="sortModeState of sortModeStates" value.bind = "sortModeState.value">${sortModeState.label}</option>
+	  				<select value.bind="sortMode" change.delegate="sort()" class="sortMode">
+			  			<option repeat.for="sortModeState of sortModeStates" value.bind = "sortModeState.value" title="${sortModeState.title}">${sortModeState.label}</option>
 			  		</select>
 	  		</div>
 	  		<div class="property">
 	  			<span class="label">Refine</span>
-		  		<input type="search" class="value" value.bind="qRefine" placeholder="Search in List" input.delegate="activateTab(activeLinkPredicate,true)"/>
+		  		<input type="search" class="value refine" value.bind="qRefine" placeholder="Search in List" input.delegate="activateTab(activeLinkPredicate,true)"/>
 		  	</div>
 		</div>
 		<div class="constraintsBlock" if.bind="loginData.status">
@@ -595,10 +608,13 @@ Namespaces</div>
 		  			</div>
 		  		</div>
 		</div>	  	
+
+	  	<div class="pager" if.bind="!(activeLinksData.page >= activeLinksData.totalPages) &&  activeLinksData.count>0"><span class="link" click.trigger="setPage(1)">|&#9664;</span> <span class="link" click.trigger="prevRefPage()">&#9664;</span> Page ${page} of ${totalPages} <span class="link" click.trigger="nextRefPage()">&#9654;</span> <span class="link" click.trigger="setPage(totalPages)">&#9654;|</span></div>
+
 	  	<div class="itemCount" if.bind="loginData.status && activeLinksData.count>0">Total Number of Items = ${activeLinksData.count}</div>
      	<div class="altLinksContent" innerhtml.bind="linksContent"></div>
 	  	<div class="linksContainer"  if.bind="mode === 'card' && linksContent === ''">
-	  		<div class="linkContainer" repeat.for="item of activeLinksData.data" if.bind="loginData.status || (!loginData.status && item.publicationStatus === 'publicationStatus:_Published')">
+	  		<div class="linkContainer" data-context="${item.link}" data-type="${item.linkType}" repeat.for="item of activeLinksData.data" if.bind="loginData.status || (!loginData.status && item.publicationStatus === 'publicationStatus:_Published')">
 	  			<div class="link iconContainer"><div class="iconSubcontainer"><img src="${item.image||item.typeImage||config.missingImage}" click.trigger="fetchContext(item.link,'card')" class="linkImage"/></div>
 	  			<!--<div  class="link colorIcon "
 	  			if.bind="g[link].hasOwnProperty('color:hasColorHexValue')"
@@ -606,13 +622,13 @@ Namespaces</div>
 	  			css="background-color:${g[link]['color:hasColorHexValue'][0].value}">&nbsp;</div>-->
 	  		</div>
 	  		<div class="linkMeta"> 	
-		  		<span click.trigger="fetchContext(item.link,'card')" class="link">${item.linkLabel}</span>
+		  		<span click.trigger="fetchContext(item.link,'card')" class="link" title="${item.link}">${item.linkLabel}</span>
 		  		<div class="linkDate">${displayLiteral({value:item.lastModifiedDate,type:'literal',datatype:'xsd:dateTime'})}</div>
 		  		<div class="linkDescription" innerHTML="${item.summary != null?item.summary:summaryFilter(item.description)}"></div>
-		  		<div class="button" click.trigger="deleteCard(item.link,item.linkType)" if.bind="userRole.has('accountRole:_Delete') && (context != 'class:_Class') && (context != 'class:_Property')">Delete</div>
+		  		<!--<div class="button" click.trigger="deleteCard(item.link,item.linkType)" if.bind="userRole.has('accountRole:_Delete') && (context != 'class:_Class') && (context != 'class:_Property')">Delete</div>
 		  		<div class="button" click.delegate="launchPage(item.link,'card')" if.bind="loginData.status">Content &#8594;</div>
 				<div class="button" click.delegate="launchPage(item.link,'properties')"
-		  			 if.bind="loginData.status">Properties &#8594;</div>
+		  			 if.bind="loginData.status">Properties &#8594;</div>-->
 		  		<div class="button" if.bind="loginData.status">${item.publicationStatus.split(':_')[1]}</div>	 
 	  		</div>
   		</div>
@@ -700,8 +716,11 @@ Namespaces</div>
 			</select>
 
 			<button click.trigger="insertTermDlg()">Insert Term</button>
+     		<button click.trigger="createTermDlg()">Create Term</button>
+			<button click.trigger="classify()">Classify</button>
 			<button class="editorButtonLong">&#8658;<img title="Convert To Rich Text" click.trigger="convertToRichText()" src="https://cdn3.iconfinder.com/data/icons/flat-design-development-set-1/24/control-rich-text-edit-512.png"  class="intLink editorButtonImage"/></button>
 			<button class="editorButtonLong">&#8656;<img title="Convert From Rich Text" click.trigger="convertFromRichText()" src="https://cdn3.iconfinder.com/data/icons/flat-design-development-set-1/24/control-rich-text-edit-512.png"  class="intLink editorButtonImage"/></button>
+			<button class="editorButtonLong" click.trigger="getPage()">Get Post</button>
 			<button class="editorButtonLong" click.trigger="saveCardProperties()">Save</button>
 		</div>
 		</div>
@@ -827,12 +846,12 @@ Namespaces</div>
   
   <modal view-model.ref="newModal" closed.delegate="processNewCard()" class="newModal">
     <div slot="header" class="dlgHeader">
-      <div class="dlgHeaderLabel">New ${g[context]['term:prefLabel'][0].value}</div>
+      <div class="dlgHeaderLabel">New ${newModalLabel}</div>
       <div class="button" click.trigger="newModal.cancel()">X</div>
     </div>
     <div class="dlgBody">
     <div class="dlg-property">	
-  		<div class="dlg-label" title="This is the name of the ${g[context]['term:prefLabel'][0].value.toLowerCase()} used in the application. Avoid the use of the &amp; or &quot; characters in titles.">Title of ${g[context]['term:prefLabel'][0].value}</div>
+  		<div class="dlg-label" title="This is the name of the ${newModalLabel.toLowerCase()} used in the application. Avoid the use of the &amp; or &quot; characters in titles.">Title of ${newModalLabel}</div>
     	<div class="cardTitleEdit"><input value.bind="activeCard.title" input.delegate="generateEntityId(context)" class="longInput" tabindex="0"/></div>
 	</div>
 	<div class="dlg-property"  if.bind="context === 'class:_User'">
@@ -894,6 +913,7 @@ Namespaces</div>
 		<button click.trigger="insertTermDlg()">Insert Term</button>
 		<button class="editorButtonLong">&#8658;<img title="Convert To Rich Text" click.trigger="convertToRichText()" src="https://cdn3.iconfinder.com/data/icons/flat-design-development-set-1/24/control-rich-text-edit-512.png"  class="intLink editorButtonImage"/></button>
 		<button class="editorButtonLong">&#8656;<img title="Convert From Rich Text" click.trigger="convertFromRichText()" src="https://cdn3.iconfinder.com/data/icons/flat-design-development-set-1/24/control-rich-text-edit-512.png"  class="intLink editorButtonImage"/></button>
+		<button class="editorButtonLong" click.trigger="getPage()">Get Post</button>
 	</div>
 
 
@@ -964,6 +984,8 @@ Namespaces</div>
 	<div class="dlg-property" repeat.for="property of templateProperties" if.bind="property.order != null">
 		<div class="dlg-label">[${property.domainLabel}] ${property.label}</div>
 		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:string'"><input type="string" value.two-way="property.value" class="longInput"/></div>
+		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:double'"><input type="number" value.two-way="property.value" class="longInput"/></div>
+		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:float'"><input type="number" value.two-way="property.value" class="longInput"/></div>
 		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:anyURI'"><input type="url" value.two-way="property.value" class="longInput"/></div>
 		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:email'"><input type="email" value.two-way="property.value" class="longInput"/></div>
 		<div class="dlg-value" if.bind="property.nodeKind === 'nodeKind:_Literal' && property.datatype === 'xsd:telephone'"><input type="tel" value.two-way="property.value" class="longInput"/></div>
@@ -1190,6 +1212,34 @@ Namespaces</div>
 	<div class="modal-footer">
 		<div class="button" click.trigger="insertTermModal.close()">Insert</div>
 		<div class="button" click.trigger="insertTermModal.cancel()">Cancel</div>
+	</div>
+  </modal>
+
+   <modal view-model.ref="createTermModal" closed.delegate="createTerm()" canceled.delegate="cancelCreateTerm()">
+    <div slot="header" class="dlgHeader">
+      <div class="dlgHeaderLabel">Create Term</div>
+      <div class="button" click.trigger="createTermModal.cancel()">X</div>
+    </div>
+
+    <div class="dlgBody">
+			<!--  change.delegate="activeClassSelected($event)" -->
+		<div class="dlg-property">
+			<div class="dlg-property">
+				<div class="dlg-label">Label:</div>
+				<div class="dlg-value"><input value.bind="createTermObj.title" type="text"/></div>
+			</div>
+			<div class="dlg-label">Class</div>
+				<div class="dlg-value">   	  	
+	   	  		<select value.bind="createTermObj.type" class="classSelector">
+	   	  			<option disabled="disabled" value="">Select a class:</option>
+	   	  			<option repeat.for="classType of instanceList['class:_Class']['rdf:type']" value.bind="classType.curie">${classType.label}</option>
+	   	  		</select>
+			</div>
+		</div>
+    </div>
+	<div class="modal-footer">
+		<div class="button" click.trigger="createTermModal.close()">Create</div>
+		<div class="button" click.trigger="createTermModal.cancel()">Cancel</div>
 	</div>
   </modal>
 

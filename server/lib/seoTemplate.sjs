@@ -27,7 +27,7 @@ let template = (graph,context,cg,schemaType)=>`{
     ,`:''}
     "headline": "${cg['term:prefLabel'][0].value}",
     ${cg.hasOwnProperty('term:hasCreatedDate')?`"datePublished": "${cg['term:hasCreatedDate'][0].value}",`:''}
-    "dateModified": "${cg['term:hasLastModifiedDate'][0].value}",
+    ${cg.hasOwnProperty('term:hasLastModifiedDate')?`"dateModified": "${cg['term:hasLastModifiedDate'][0].value}",`:''}
     "articleBody":"${strip(strip(cg['term:hasDescription'][0].value))}",  
     "url": "http://cognitiveworlds.com/?context=${context}",
     "publisher": {

@@ -22,6 +22,7 @@ class SplashScreen {
   }
   
   init(){
+    console.log("init called")
     this.addClass(this.startClass); 
     this.addClass(this.endClass)
   }
@@ -30,7 +31,6 @@ class SplashScreen {
 let splashScreen = new SplashScreen();
 console.log(splashScreen);
 
-splashScreen.init()
 
 
 export class App {
@@ -47,10 +47,12 @@ export class App {
       defaultPage:"publisher:_CognitiveWorld",
       defaultIcon:"/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg",
       missingImage:"/lib/getImage.sjs?path=/images/image/_DefaultImage.jpeg",
-      defaultLabel:"GraCIE",
+      defaultLabel:"Kaleidoscope",
       footer:`<div class="copyright">Copyright 2019 Semantical LLC.</div>`,
       activeCSS:""
     };
+    // this.contextMenu.attach('body',menuDefinition);
+    //console.log(this.contextMenu);
 //    this.theme = "blue";
 //    this.topBannerMessage = `<img src="http://cognitiveworlds.com/lib/getImage.sjs?path=/images/image/_TheCagleReportBanner.jpeg" class="topBannerImage"/>`;    
 //    this.defaultPage = "publisher:_CognitiveWorld";
@@ -74,19 +76,21 @@ export class App {
     this.searchData = {};
     this.history = [];
     this.mode=this.params.mode||"card";
+    this.newModalLabel = "";
     this.showAdvancedListOptions = true;
     this.showMenu = false;
+    this.splashScreen = splashScreen;
     //this.sortMode = "createdDateDesc";
     this.sortMode = "sortMode:_ModifiedDateDesc";
     this.sortModeStates = [
-      {label:"Created Date Descending",value:"sortMode:_CreatedDateDesc"},
-      {label:"Modified Date Descending",value:"sortMode:_ModifiedDateDesc"},
-      {label:"Created Date Ascending",value:"sortMode:_CreatedDateAsc"},
-      {label:"Modified Date Ascending",value:"sortMode:_ModifiedDateAsc"},
-      {label:"Alphanumeric Ascending",value:"sortMode:_AlphaAsc"},
-      {label:"Alphanumeric Descending",value:"sortMode:_AlphaDesc"},
-      {label:"Internal Order Ascending",value:"sortMode:_OrdinalAsc"},
-      {label:"Internal Order Descending",value:"sortMode:_OrdinalDesc"}
+      {label:"📆⬇",value:"sortMode:_CreatedDateDesc",title:"Creation Date Descending"},
+      {label:"📆⬆",value:"sortMode:_CreatedDateAsc",title:"Creation Date Ascending"},
+      {label:"🛠⬇",value:"sortMode:_ModifiedDateDesc",title:"Last Modified Date Descending"},
+      {label:"🛠⬆",value:"sortMode:_ModifiedDateAsc",title:"Last Modified Date Asscending"},
+      {label:"A➡Z⬆",value:"sortMode:_AlphaAsc",title:"Alphanumeric Ascending"},
+      {label:"Z➡A⬇",value:"sortMode:_AlphaDesc" ,title:"Alphanumeric Descending"},
+      {label:"📄⬆",value:"sortMode:_PageAsc",title:"Page Ascending"},
+      {label:"📄⬇",value:"sortMode:_OrdinalDesc",title:"Page Descending"}
 ];
     this.namespace = '';
     this.activeLinkPredicate = null;
@@ -112,6 +116,7 @@ export class App {
     this.loadBlocks();
     this.typedMessage = '';
     this.insertTermObj = {label:"",value:"",temp:"",asImage:false,image:""};
+    this.createTermObj =  {title:"",temp:"",context:"",type:"",body:"",image:"",user:""};
     this.complianceItem={country:"", industry:"",strain:"",enzyme:"",product:"",complianceTest:"",
       noItemsMessage:`<div><p>No Compliance Tests Exist for this combination.</p><p>While this cannot guarantee that there are no compliance requirements,
       it does mean that Dupont has not yet developed a compliance test for this contingency, so you should check with regulatory compliance guidelines.</p></div>`};
@@ -127,6 +132,7 @@ export class App {
     this.selectedProperty = null;
     this.activePropertyValues = [];
     this.activePredicates = [];
+    this.preferredClasses = [];
     this.availableTemplates = [];
     var hash = window.location.hash.substr(1);
     this.hash = this.mode||hash||"card";
@@ -162,6 +168,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:"",acti
     this.linkPropertyList = {};
     this.activeLinksData = {count:0,data:[],page:1,pageSize:20,numPages:1};
     this.displayFullBody = false;
+    let me = this;
 //    this.server = "";
 //    this.client = this.server
     setTimeout(()=>{
@@ -207,7 +214,8 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:"",acti
   }
 
 
-  fetchContext(context,hash="card",dataOptions = {qRefine:'',noPush:false,}){
+  fetchContext(context,hash="card",callback){
+    let dataOptions = {qRefine:'',noPush:false,}
     if (this.cardEdit){
       alert("You are currently in edit mode. You must save or revert changes first.");
       return}
@@ -269,6 +277,7 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:"",acti
         let tabIndex = this.activePredicates.map((predicate)=>predicate.curie).includes('rdf:type')?this.activePredicates.map((predicate)=>predicate.curie).indexOf('rdf:type'):0;
         console.log("Active Predicates:",this.activePredicates);
         let predicate = this.preferredPredicate?this.preferredPredicate:this.activePredicates.length>0?this.activePredicates[tabIndex].curie:'rdf:type';
+        this.getPreferredClasses(this.context);
         //this.activeLinkPredicate = predicate;
         setTimeout(()=>{
           //this.activateTab(predicate,true,options);
@@ -281,8 +290,11 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:"",acti
           //this.getWidgets();
           this.refreshBlocks();
           this.validateUserContext();
-          document.documentElement.scrollTop = 0
+          document.documentElement.scrollTop = 0;
+          this.addLinkContextMenu()
+
         },500)
+        this.splashScreen.init();
   			//console.log(this.activeLinkPredicate);
         //console.log("************ Predicates");
         //console.log(this.predicates)
@@ -298,6 +310,40 @@ domain:"",range:"",cardinality:"",sourceCurie:"",externalURL:"",template:"",acti
         this.wait = false;
       }})
     
+  }
+
+  addLinkContextMenu(){
+          if (Array.from(document.querySelectorAll('.linkContainer.au-target')).length === 0){
+            let contextMenu = CtxMenu('.linkContainer');
+            //Array.from(contextMenu._items).forEach((item)=>{contextMenu.removeItem(item);console.log(item)})
+            contextMenu.addItem("Go",(elt)=>app.fetchContext(elt.dataset.context));
+            contextMenu.addItem("Properties",(elt)=>app.fetchContext(elt.dataset.context,'properties'));
+            contextMenu.addSeperator();
+            contextMenu.addItem("Edit Label",(elt)=>{
+            let newLabel = prompt("Please enter the new label:");  
+            if(newLabel){
+                app.setSingletonProperty(elt.dataset.context,'term:prefLabel',newLabel,'xsd:string');
+                }
+            });
+            contextMenu.addItem("Delete",(elt)=>app.deleteCard(elt.dataset.context,elt.dataset.type));
+            contextMenu.addSeperator();
+            contextMenu.addItem("Card in New Pane",(elt)=>app.launchPage(elt.dataset.context,"card"))
+            contextMenu.addItem("Properties in New Pane",(elt)=>app.launchPage(elt.dataset.context,"properties"))
+            contextMenu.addSeperator();
+            contextMenu.addItem("Set to Draft",(elt)=>app.setSingletonProperty(elt.dataset.context,'term:hasPublicationStatus','publicationStatus:_Draft'))
+            contextMenu.addItem("Set to Published",(elt)=>app.setSingletonProperty(elt.dataset.context,'term:hasPublicationStatus','publicationStatus:_Published'))
+            console.log(contextMenu);
+        }
+  }
+
+
+  setSingletonProperty(context,property,propertyValue,datatype=null){
+    let options = {method:"post",body:JSON.stringify({subject:context,predicate:property,object:propertyValue,datatype:datatype},null,4)};
+    let path = `${this.server}/lib/updateStatement.sjs`;
+    window.fetch(path,options)
+    .then((resp)=>resp.json())
+    .then((json)=>{console.log(json);app.fetchContext(this.context)})
+    .catch((e)=>console.log(e))
   }
 
   filterListPredicates(predicates){
@@ -534,7 +580,11 @@ inputSearch(){
           <div class="colorValue">${item.value}</div>
           </div>`;
         case "xsd:curie":return `<span class="curie">${item.value}</span>`;
-        case "xsd:anyURI":return `<a href="${item.value}" target="_blank" class="link">${item.value.replace(/(http.+?\/\/)(.+?\/).*/,'$1$2...')}</a>`;
+        case "xsd:anyURI":{
+
+          let protocol =  (item.value.match(/^http/))?'':'https://';
+          return `<a href="${protocol}${item.value}" target="_blank" class="link">${item.value.replace(/(http.+?\/\/)(.+?\/).*/,'$1$2...')}</a>`
+            };
         case "xsd:email":return `<a href="mailto:${item.value}" target="_blank" class="link">${item.value}</a>`;
         case "xsd:telephone":return `<a href="tel:${item.value.replace(/\-|\(|\)|\./g,'')}" target="_blank" class="link">${item.value}</a>`;
         case "xsd:anyURL":return `<a href="https://${item.value}" target="_blank" class="link">${item.value.replace(/(http.+?\/\/)(.+?\/).*/,'$1$2...')}</a>`;
@@ -685,6 +735,7 @@ inputSearch(){
        this.cardEdit = true;
        this.editMode = editMode;
     }
+
     saveCard(){
 //       this.g[this.context]['term:prefLabel'][0].value = this.activeCard.title;
 //       this.g[this.context]['term:hasDescription']=[{datatype:"termType:_HTML",value:this.activeCard.body,type:"literal"}];
@@ -711,7 +762,7 @@ inputSearch(){
        .catch((e)=>console.log(e));
        this.cardEdit = false;
     }
-    filterBody(content,filters=['box']){
+    filterBody(content,filters=['eval','table']){
       let input = content||"";
       if (input === ""){return ""}
       //console.log(`content = ${input}`);
@@ -719,6 +770,8 @@ inputSearch(){
       switch(filter){
         case "box": input = this.boxFilter(input);return input;break;
         case "lists": input = this.listsFilter(input);return input;break;
+        case "eval": input = this.evalFilter(input);return input;break;
+        case "table": input = this.tableFilter(input);return input;break;
         default: input;
       }
     })
@@ -736,6 +789,44 @@ inputSearch(){
     input = input.replace(/\*/g,`<li>`); // Replaces *s with list items. Doesn't handle inline * case well
     return input;
   }
+
+  tableFilter(input){
+    let context = this.context;
+    let ct = 0;
+    let parser = new DOMParser();
+    input = input.replace(/(\[macro\])(.*?)(\[\/macro\])/gi,(match,p1,p2,p3)=>`${p1}${p2.replace(/\<\/?div\>/gi,'').replace("&#160;"," ","g")}${p3}`);
+    //console.log(input);
+    input = input.replace(/\[macro\]\s*?\[query\](.+?)\[\/query\]\s*?\[template\](.+?)\[\/template\]\s*?\[style\](.+?)\[\/style\]\s*?\[\/macro\]/gi,(match,query,template,style)=>{
+      query = query.replace(/<\/div><div>/g,'\n');
+      template = template.replace(/\&lt;/g,'<').replace(/\&gt;/g,'>').replace(/&nbsp;/g, " ").trim();
+      style = style.replace(/\&lt;/g,'<').replace(/\&gt;/g,'>').replace(/&nbsp;/g, " ").trim();
+      console.log(template);
+      let htmlTemplate = eval(template);
+      let options = {method:"POST",body:JSON.stringify({query:query})};
+      let path = `${this.server}/lib/clientEval.sjs`;
+      let tableId = `${context.replace(/\:/,'_')}_table_${ct}`;
+      ct += 1;
+      fetch(path,options)
+      .then((resp)=>resp.json())
+      .then((json)=>{
+        let rows = json;
+        let keys = Object.keys(rows[0]);
+        let html = `<style type="css">${style}</style> ${htmlTemplate(rows,keys)}`;
+        console.log(html);
+        let elem = document.querySelector(`#${tableId}`);
+        elem.innerHTML = html;
+        })
+      .catch((e)=>console.log(e))
+      return `<div id="${tableId}">Loading ...</div>`})
+    return input
+  }
+
+  evalFilter(input){
+    let context = this.context;
+    input = input.replace(/\[eval\:(.*?)\]/g,(match,$1)=>eval($1));
+    return input
+  }
+
   iso2Date(isoDate){
     let date = new Date(isoDate);
     return date.toLocaleDateString("en-us",{ year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -771,12 +862,14 @@ inputSearch(){
       })
     })
   }
+
   saveCardProperties(){
     this.cardEdit = false;
     let curie = this.activeCard.curie;
        this.g[this.context]['term:prefLabel'][0].value = this.activeCard.title!= ''?this.activeCard.title:`${this.tokenize((new Date()).toISOString())}`;
        this.g[this.context]['term:hasDescription']=[{datatype:"xsd:html",value:this.activeCard.body,type:"literal"}];
        this.g[this.context]['term:hasPrimaryImageURL'] = [{datatype:"xsd:imageURL",value:this.activeCard.image,type:"literal"}];
+       this.g[this.context]['term:hasLastModifiedBy'] = [{value:this.loginData.context,type:"uri"}];
 /*       if (this.activeCard.sourceCurie != ''){
          this.g[this.context]['term:hasSourceTerm'] = [{value:this.activeCard.sourceCurie,type:"uri"}];
        }*/
@@ -790,10 +883,14 @@ inputSearch(){
       let objects = this.g[this.context][predicate]||[];
       Array.from(objects).forEach((object)=>{
         if (object.type==='uri'){
-          buffer.push(`${curie} ${predicate} ${object.value}.`)
+          if (!object.value.match(/:_$/)){
+            buffer.push(`${curie} ${predicate} ${object.value}.`)
+          }
         }
         else {
-          buffer.push(`${curie} ${predicate} """${object.value}"""^^${object.datatype||'xsd:string'}.`)
+          if (object.value === ""){
+            buffer.push(`${curie} ${predicate} """${object.value}"""^^${object.datatype||'xsd:string'}.`)
+          }
         }
       })
     })
@@ -807,6 +904,7 @@ insert {
 where {
   ${this.context} ?p ?o
 }`;
+  console.log(output)
   let newRecord = {"@context":this.namespace,"graph":this.g,subject:this.context,curie:curie};
   let path = `${this.server}/lib/updateProperties.sjs`;
   window.fetch(path,{method:"POST",body:JSON.stringify(newRecord,null,4)})
@@ -980,12 +1078,13 @@ console.log(output);
   }
 
 
-  newCard(ctx,asProperty=false,preferredProperty='',target=''){
+  newCard(ctx,label=this.newModalLabel,asProperty=false,preferredProperty='',target=''){
     let context = ctx||this.context;
     this.context = context;
     this.generateEntityId(this.context);
     this.activeCard = Object.assign(this.defaultCard,{});
     this.activeCard.type = context;
+    this.newModalLabel = label;
     this.activeCard.title = "";
     this.activeCard.body = "";
     this.activeCard.externalURL = "";
@@ -1318,9 +1417,9 @@ filterComplianceTest(){
     return `${content}`;
   }
 
-  addProperty(property){
+  addProperty(property,context=this.context){
     //alert("Placeholder for add property.")
-    let contextType = this.g[this.context]['rdf:type'][0].value;
+    let contextType = this.g[context]['rdf:type'][0].value;
     let path = `${this.server}/lib/properties.sjs?type=${contextType}&cache=refresh`;
     console.log(path);
     fetch(path)
@@ -1573,6 +1672,59 @@ filterComplianceTest(){
      editor.focus();
 
      document.execCommand('insertHTML',false,videoEmbed);
+ }
+
+createTermDlg(){
+    this.createTermObj = {label:"",curie:"",type:"",temp:""};
+    let editor = document.querySelector('.bodyEditor');
+    let selection = window.getSelection();
+//    this.q = selection.toString();
+    this.createTermObj.temp = selection.toString();
+    this.createTermObj.title = selection.toString();
+    //this.formatDoc('insertHTML',"%^%");
+    //this.inputSearch()
+    this.createTermModal.open()
+}
+
+ createTerm(){
+    //console.log(this.createTermObj)
+    let ctObj = this.createTermObj;
+    let cleanTitle = ctObj.title;
+    let className = ctObj.type.replace(/.*?\:_(.+?)$/,"$1");
+    let prefix = `${className.substr(0,1).toLowerCase()}${className.substr(1)}`;
+    var id = this.tokenize(cleanTitle);
+    if (id === ""){id = this.tokenize((new Date()).toISOString())}
+    ctObj.curie = `${prefix}:_${id}`;
+    ctObj.title = cleanTitle;
+    ctObj.user = this.loginData.context;
+    ctObj.image = "";
+    ctObj.body = ctObj.title;
+    ctObj.predicateEntries = [];
+    console.log(ctObj);
+    let options = {method:"POST",body:JSON.stringify(ctObj,null,4)};
+    window.fetch('http://gracie.semanticdatagroup.com/lib/newCard.sjs',options)
+    .then((resp)=>resp.json())
+    .then((json)=>{
+        console.log(json);
+        this.classify();
+    })
+    .catch((e)=>console.log(e))
+
+    /*
+{"title":"Lori Lemaris",
+ "curie":"influencer:_LoriLemaris",
+ "type":"class:_Influencer",
+ "body":"Influencer Lori Lemaris",
+ "image":"",
+ "user":"user:_KurtCagle",
+ "predicateEntries":[]
+ }
+    */
+ }
+
+ cancelCreateTerm(){
+
+
  }
 
 
@@ -1965,13 +2117,18 @@ setBodyToTemplate(){
   getPreferredClasses(context=this.context){
     if (!this.g){return []}
     if (!context){return []}
-    if (this.g.hasOwnProperty(context) === null){return []}
+    //if (this.g.hasOwnProperty(context)){return []}
     let contextClass = this.g[context]['rdf:type'][0].value;
     console.log(contextClass);
 
-    let preferredProperty = this.g[contextClass].hasOwnProperty('term:hasPreferredProperty')?this.g[contextClass]['term:hasPreferredProperty'][0].value:'';
-    console.log(preferredProperty);
-    if (preferredProperty !=''){
+    let preferredProperties = this.g[contextClass].hasOwnProperty('class:hasPreferredProperty')?this.g[contextClass]['class:hasPreferredProperty']:[];
+    console.log(preferredProperties);
+    let childPrefixes = preferredProperties.map((property)=>property.value.split(':')[0]);
+    console.log(childPrefixes);
+    let childClasses = childPrefixes.map((childPrefix)=>this.instanceList['class:_Class']['rdf:type'].filter((childClass)=>childClass.prefix === childPrefix));
+    console.log(childClasses);
+    this.preferredClasses = childClasses[0];
+/*    if (preferredProperty !=''){
       this.preferredProperty = preferredProperty;
       let prefix = preferredProperty.split(/:/)[0];
       console.log(prefix)
@@ -1980,7 +2137,7 @@ setBodyToTemplate(){
       console.log(classInstances);
       return classInstances
     }
-    else return []  
+    else return []  */
   }
     loadMenu(context,selector){
       let path = `/lib/menu.sjs?context=${context}&predicate=menuItem:hasParentMenuItem&sort=sortMode:_OrdinalAsc&transitive=plus&pageSize=100`;
@@ -2055,6 +2212,105 @@ setBodyToTemplate(){
           this.userValidated = this.loginData.data.hasOwnProperty('user:hasEditClass')?this.loginData.data['user:hasEditClass'].find((editClass)=>editClass.value === typeClass ||editClass.value === this.context)!=null:false;
           };break;
         default: this.userValidated = false;
+      }
+    }
+    classify(){
+      let message = {context:this.context,description:this.activeCard.body,uid:this.loginData.context};
+      console.log(message);
+      let path = `${this.server}/lib/enrich.sjs`;
+      let options = {"method":"POST",body:JSON.stringify(message,null,4)}
+      window.fetch(path,options)
+      .then((resp)=>resp.json())
+      .then((json)=>{
+          console.log(json);
+          this.activeCard.body=json.description;
+          let topics = json.topics;
+          console.log(topics)
+          let context = this.context;
+          topics.forEach((topic)=>{
+            let predicate = topic.predicate;
+            let curie = topic.curie;
+            let doesPredicateExist = this.g[this.context].hasOwnProperty(predicate);
+            let obj = {type:"uri",value:curie}
+            if (predicate != null){
+           if (Array.isArray(this.g[context][predicate])){this.g[context][predicate].push(obj)}
+          else {this.g[context][predicate]=[obj]}
+        }
+          })
+        })
+      .catch((e)=>console.log(e))
+    }
+    getPage(){
+      let url = prompt("Enter page URL");
+      let path = `/lib/getPage.sjs?url=${url}`;
+      fetch(path)
+      .then((resp) => resp.text())
+      .then((text) => {
+          console.log(text);
+          let dom = (new DOMParser()).parseFromString(text,'text/html');
+          let meta = {}
+          Array.from(dom.querySelectorAll('meta[property]')).map((metaElt)=>{
+            let property = metaElt.getAttribute('property');
+            let content = metaElt.getAttribute('content');
+            if (meta.hasOwnProperty(property)){
+              if (!Array.isArray(meta[property])){
+                meta[property] = [meta[property]]
+              }
+              meta[property].push(content)
+            }
+            else {
+              meta[property] = content
+            }
+          });
+          if (url.match(/instagram\.com/)){
+              this.activeCard.title = meta['og:title'].replace(/<.+?>/g,' ').replace(/\s+/g,' ');
+              this.activeCard.curie = 'webPost:_'+meta['og:url'].replace(/[^A-Za-z0-9]/g,'').replace(/\:/g,'');
+              this.activeCard.type = 'class:_WebPost';
+              this.activeCard.image = meta['og:image'];
+              this.activeCard.body = meta['og:description'];
+              this.activeCard.externalURL = meta['og:url'];
+              if (meta.hasOwnProperty('instapp:hashtags')){this.activeCard.body += '<br/>'+meta['instapp:hashtags'].map((hashtag)=>`#${hashtag}`).join(' ');}
+              this.activeCard.body += `<br/><br/><b>Social Media Site:</b> Instagram<br/>`;
+            }
+          if (url.match(/pinterest\.com/)){
+              this.activeCard.title = meta['og:title'].replace(/<.+?>/g,' ').replace(/\s+/g,' ');
+              this.activeCard.curie = 'webPost:_'+meta['og:url'].replace(/[^A-Za-z0-9]/g,'').replace(/\:/g,'');
+              this.activeCard.type = 'class:_WebPost';
+              this.activeCard.image = meta['og:image'];
+              this.activeCard.body = meta['og:description'];
+              this.activeCard.externalURL = meta['og:url'];
+              //this.activeCard.body += '<br/>'+meta['instapp:hashtags'].map((hashtag)=>`#${hashtag}`).join(' ');
+              this.activeCard.body += `<br/><br/><b>Social Media Site:</b> Pinterest<br/>`;
+            }
+            else {
+                let xp = new XPath(dom);
+                this.activeCard.title = xp.getNodes("//title")[0].textContent.trim();
+                this.activeCard.body = Array.from(dom.querySelectorAll('BODY>*:not(SCRIPT)')).map((node)=>node.outerHTML).join('\n');
+                //xp.getNodes("//BODY/*").map((node)=>node.outerHTML).join('\n');
+                this.activeCard.image = meta['og:image'];
+                this.activeCard.externalURL = url;
+                this.generateEntityId(this.context);
+//                console.log(this.activeCard);
+            }
+          console.log(meta);
+      })
+      .catch((e)=>console.log(e))
+    }
+    async getFileAsync(url){
+//      let url = "https://medium.com/@joshgans/a-war-footing-surfing-the-curve-f5ffe6134e37";
+      let path = `/lib/getPage.sjs?url=${url}`
+      let resp = await window.fetch(path,{method:"GET",mode:"cors"});
+      let docText = await resp.text();
+      return docText;
+    }
+    async getWebPage(){
+      let url = prompt("Paste in URL of web page to load.");
+      if (url){
+        let html = await this.getFileAsync(url);
+        let dom = (new DOMParser()).parseFromString(html,"text/html");
+        let xp = new XPath(dom);
+        this.activeCard.title = xp.getNodes("//title")[0].textContent;
+        this.activeCard.body = xp.getNodes("//BODY/*").map((node)=>node.outerHTML).join('\n');
       }
     }
 }

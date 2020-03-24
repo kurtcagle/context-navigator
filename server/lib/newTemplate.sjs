@@ -7,7 +7,7 @@ let semClass = xdmp.getRequestField("context","class:_Article")
 xdmp.addResponseHeader("Access-Control-Allow-Origin", "*");
 xdmp.addResponseHeader("Content-Type", "application/json");
 let query=`${ns.sparql()}
-select ?property ?label ?domain ?domainLabel ?range ?nodeKind ?order ?datatype ?cardinality ?defaultValue ?terms ?description where {
+select ?property ?label ?domain ?domainLabel ?range ?nodeKind ?order ?datatype ?cardinality ?defaultValue ?description where {
   ${semClass} rdfs:subClassOf* ?domain.
   ?property term:prefLabel ?label.
   filter(!sameTerm(?property,rdf:type))
@@ -18,7 +18,9 @@ select ?property ?label ?domain ?domainLabel ?range ?nodeKind ?order ?datatype ?
       ?property rdfs:range ?range.
   }
   ?property property:hasCardinality ?cardinality.
+  optional {
   ?property property:hasNodeKind ?nodeKind.
+  }
   optional {
        ?property property:hasDatatype ?datatype.
   }
@@ -34,8 +36,9 @@ select ?property ?label ?domain ?domainLabel ?range ?nodeKind ?order ?datatype ?
   }
 } order by desc(?order) ?label`
 let rows = ns.cure(sem.sparql(query));
-
-rows.filter((row)=>row.nodeKind === 'nodeKind:_IRI').forEach((row)=>{
+rows
+try {
+rows.filter((row)=>row.nodeKind != "nodeKind:_Literal").forEach((row)=>{
   let subquery = `${ns.sparql()} select ?curie ?label where {
       ?curie a ${row.range}.
       ?curie term:prefLabel ?label
@@ -46,3 +49,5 @@ rows.filter((row)=>row.nodeKind === 'nodeKind:_IRI').forEach((row)=>{
 //let rows = sem.sparql(query)
 let newTemplate = {templateData:rows,context:semClass};
 newTemplate
+}
+catch(e){e.row = row;e}
